@@ -5,7 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "android": { "package": "com.interactiveworld.app", "permissions": ["CAMERA"] },
+    "android": {
+      "package": "com.interactiveworld.app",
+      "permissions": ["CAMERA"]
+    },
     "plugins": [
       [
         "expo-image-picker",
@@ -14,7 +17,8 @@
           "cameraPermission": "Photograph an object to bring it to life in InteractiveWorld.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-sharing"
     ]
   }
 }

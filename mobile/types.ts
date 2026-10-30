@@ -5,24 +5,43 @@ export type Scene = {
   code: string;
   actions: { id: string; label: string; sound?: string }[]};
 export type ViewerMessage = {
-  type: 'ready' | 'loaded' | 'error' | 'fatal' | 'action';
+  type: 'ready' | 'loaded' | 'error' | 'fatal' | 'action' | 'exported' | 'export-error';
   id?: string;
-  message?: string};
+  message?: string;
+  data?: string};
 export type ViewerProps = {
   dark: boolean;
   muted: boolean;
   scene: Scene | null;
   sceneId: string;
   onMessage: (message: ViewerMessage) => void;
-  command: { type: 'reset' | 'action'; id?: string; serial: number } | null};
+  command: {
+    type: 'reset' | 'action' | 'export';
+    id?: string;
+    sceneId?: string;
+    serial: number} | null};
 export function parseMessage(raw: string): ViewerMessage | null {
-  if (raw.length > 1000) return null;
+  if (raw.length > 12 * 1024 * 1024 + 1000) return null;
   try {
     const m = JSON.parse(raw);
-    if (!['ready', 'loaded', 'error', 'fatal', 'action'].includes(m.type)) return null;
+    if (
+      !['ready', 'loaded', 'error', 'fatal', 'action', 'exported', 'export-error'].includes(m.type)
+    )
+      return null;
     if (m.id !== undefined && (typeof m.id !== 'string' || m.id.length > 80)) return null;
     if (m.message !== undefined && (typeof m.message !== 'string' || m.message.length > 400))
       return null;
+    if (m.type === 'exported') {
+      if (
+        typeof m.id !== 'string' ||
+        typeof m.data !== 'string' ||
+        m.data.length > 12 * 1024 * 1024 ||
+        !m.data.length ||
+        m.data.length % 4 ||
+        !/^[A-Za-z0-9+/]+={0,2}$/.test(m.data)
+      )
+        return null;
+    } else if (raw.length > 1000) return null;
     return m;
   } catch {
     return null;

@@ -37,6 +37,7 @@ Turn a photo into a stylized procedural 3D object, interact with its parts, and 
 | Generated 3D | Explore a stylized object with studio lighting and shadows |
 | Playful actions | Tap parts and trigger generated animation and color changes |
 | Object sounds | 21 contextual sound effects selected by Claude; mute from the viewer |
+| GLB export | Save or share the current object as a portable static 3D model |
 | Chat edits | Change the current creation without rebuilding or restarting |
 | White + dark themes | Switch with one tap; your choice is remembered locally |
 | Recovery | Keep the last working scene when a replacement fails |
@@ -86,6 +87,12 @@ The backend is a local prototype for a trusted network, without account authenti
 - **Reload viewer** recovers a lost graphics context using the last working scene.
 - If recognition fails, the app explains how to improve the photo and offers **Try another photo** (gallery) and **Take a new photo** (camera). Opening either picker does not generate a scene or spend tokens; the new photo still requires confirmation.
 - Scenes and connection settings currently live in memory; restarting the app starts a fresh session. Theme preference is saved on the device.
+
+## Export your model
+
+Tap **Export 3D model** below the viewer. On Android/iOS, choose an available save or sharing destination in the system dialog; on web, check your browser downloads. Closing the dialog without choosing a destination does not save a permanent copy.
+
+The `.glb` file contains the latest successfully loaded object in its resting pose, including geometry and materials. It excludes the studio floor, lighting, sounds and interactive animations. Open it in a GLB-compatible application such as Blender. Export happens locally and makes no AI requests. Export failures leave the current scene intact; files above 9 MiB are rejected to bound memory use.
 
 ## Local sound library
 

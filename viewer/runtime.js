@@ -1,3 +1,4 @@
+import { exportModel } from './export.mjs';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createSoundPlayer } from './sounds.mjs';
@@ -24,7 +25,15 @@ const color = c => {
     throw new Error('Use six-digit hex colors');
   return c;
 };
-let renderer, camera, controls, world, current, candidate, currentId;
+let renderer,
+  camera,
+  controls,
+  world,
+  current,
+  candidate,
+  currentId,
+  currentData,
+  exporting = false;
 const soundPlayer = createSoundPlayer();
 const raycaster = new THREE.Raycaster();
 const dispose = s => {
@@ -215,12 +224,36 @@ function receive(raw) {
         soundPlayer.stop();
         current = next;
         currentId = m.id;
+        currentData = m.scene;
         dispose(previous);
         resetView();
         send('loaded', { id: m.id });
       } catch (e) {
         if (next && next !== current) dispose(next);
         send('error', { id: m.id, message: String(e.message).slice(0, 300) });
+      }
+    } else if (
+      m.type === 'export' &&
+      typeof m.id === 'string' &&
+      m.sceneId === currentId &&
+      !exporting
+    ) {
+      exporting = true;
+      let snapshot;
+      try {
+        snapshot = makeScene(currentData);
+        exportModel(snapshot.root)
+          .then(data=> send('exported', { id: m.id, data }))
+          .catch(() =>
+            send('export-error', { id: m.id, message: 'Could not export this model. Try again.' }))
+          .finally(() => {
+            dispose(snapshot);
+            exporting = false;
+          });
+      } catch {
+        dispose(snapshot);
+        exporting = false;
+        send('export-error', { id: m.id, message: 'Could not prepare the model for export.' });
       }
     } else if (m.type === 'action' && typeof m.id === 'string') action(m.id);
     else if (m.type === 'mute' && typeof m.muted === 'boolean') soundPlayer.mute(m.muted);

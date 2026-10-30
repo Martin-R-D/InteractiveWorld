@@ -16,6 +16,7 @@ import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Crypto from 'expo-crypto';
+import { saveModel } from './mobile/saveModel';
 import SceneViewer from './mobile/SceneViewer';
 import { Scene, ViewerMessage } from './mobile/types';
 import { ThemeProvider, useTheme } from './mobile/theme';
@@ -68,13 +69,15 @@ function Main() {
     [failed, setFailed] = useState<Scene | null>(null);
   const [phase, setPhase] = useState(''),
     [error, setError] = useState(''),
-    [clarification, setClarification] = useState<{ question: string; choices: string[] } | null>(
-      null);
-  const [muted, setMuted] = useState(false);
+    [clarification, setClarification] = useState<{ question: string; choices: string[] } |null>(null);
+ const [exporting,setExporting]=useState(false),[exportMessage,setExportMessage]=useState('');
+ const exportRequest=useRef<{id:string;name:string;saving?:boolean;timer:ReturnType<typeof setTimeout>}|null>(null);
+ const [muted, setMuted] = useState(false);
   const [viewerKey, setViewerKey] = useState(0),
     [command, setCommand] = useState<{
-      type: 'reset' | 'action';
+      type: 'reset' | 'action' | 'export';
       id?: string;
+      sceneId?: string;
       serial: number} | null>(null),
     [note, setNote] = useState(''),
     [repaired, setRepaired] = useState(false);
@@ -103,10 +106,11 @@ function Main() {
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
+      if (exportRequest.current) clearTimeout(exportRequest.current.timer);
     },
     []);
   async function choose(camera: boolean) {
-    if (locked.current) return;
+    if (locked.current || exportRequest.current) return;
     try {
       if (camera) {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -147,7 +151,7 @@ function Main() {
     if (timer.current) clearTimeout(timer.current);
   }
   async function generate(mode: 'generate' | 'edit' | 'repair', targetOverride?: string) {
-    if (locked.current) return;
+    if (locked.current || exportRequest.current) return;
     if (mode === 'generate' && !photo) return;
     if (mode === 'edit' && (!current || !prompt.trim())) return;
     if (!/^https?:\/\//.test(endpoint)) {
@@ -225,7 +229,46 @@ function Main() {
       void check();
     }
   }
+  function finishExport(message: string) {
+    if (exportRequest.current) clearTimeout(exportRequest.current.timer);
+    exportRequest.current = null;
+    setExporting(false);
+    setExportMessage(message);
+  }
+  function exportCurrent() {
+    if (!current || busy || exportRequest.current) return;
+    const id = Crypto.randomUUID();
+    setExporting(true);
+    setExportMessage('');
+    exportRequest.current = {
+      id,
+      name: current.name,
+      timer: setTimeout(
+        () => finishExport('Export timed out. Reload the viewer and try again.'),
+        30000)};
+    setCommand({ type: 'export', id, sceneId: workingId.current, serial: Date.now() });
+  }
+  async function receiveExport(m: ViewerMessage) {
+    const request = exportRequest.current;
+    if (!request || request.id !== m.id || request.saving) return;
+    request.saving = true;
+    clearTimeout(request.timer);
+    if (m.type === 'export-error') {
+      finishExport(m.message ?? 'Could not export the model. Please try again.');
+      return;
+    }
+    try {
+      const message = await saveModel(m.data!, request.name);
+      finishExport(message);
+    } catch {
+      finishExport('Could not save the model. Please try exporting again.');
+    }
+  }
   function viewerMessage(m: ViewerMessage) {
+    if (m.type === 'exported' || m.type === 'export-error') {
+      void receiveExport(m);
+      return;
+    }
     if (m.type === 'loaded' && pending.current && m.id === pending.current.id) {
       workingId.current = m.id;
       setCurrent(pending.current.scene);
@@ -245,6 +288,7 @@ function Main() {
       unlock();
     }
     if (m.type === 'fatal') {
+      if (exportRequest.current) finishExport('Viewer stopped. Reload it and try exporting again.');
       setError(m.message ?? 'Reload the viewer to recover.');
       if (pending.current) setFailed(pending.current.scene);
       pending.current = null;
@@ -372,7 +416,11 @@ function Main() {
               <Text style={s.cardTitle}>What will you bring to life?</Text>
               <Text style={[s.muted, { textAlign: 'center' }]}>Start with one object and a clear photo.{'\n'}A lamp, a sneaker, your favorite mugâ€¦</Text>
               <View style={s.full}>
-                <Button label="â—Ž  Take a photo" onPress={() => void choose(true)} disabled={busy} />
+                <Button
+                  label="â—Ž  Take a photo"
+                  onPress={() => void choose(true)}
+                  disabled={busy}
+                />
                 <Button
                   label="â†—  Choose from gallery"
                   onPress={() => void choose(false)}
@@ -471,6 +519,18 @@ function Main() {
                 />}
             </View>}
           {current &&<>
+              <View style={s.card}>
+                <Button
+                  label={exporting ? 'Exporting model…' : 'Export 3D model'}
+                  onPress={exportCurrent}
+                  disabled={busy || exporting}
+                  secondary
+                />
+                <Text style={s.small}>GLB file · static model · no sounds or animations</Text>
+                {!!exportMessage &&<Text accessibilityLiveRegion="polite" style={s.muted}>
+                    {exportMessage}
+                  </Text>}
+              </View>
               <View style={s.sectionRow}>
                 <Text style={s.cardTitle}>Give it a little nudge</Text>
                 <Text style={s.small}>TRY AN ACTION</Text>
