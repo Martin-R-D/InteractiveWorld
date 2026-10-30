@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="title desc">
+  <title id="title">InteractiveWorld — Your world, a little more alive.</title>
+  <desc id="desc">A mint geometric object orbits a glowing circle beside the InteractiveWorld wordmark.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#f5f9ef"/><stop offset="1" stop-color="#e2edd8"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#c9f7a5" stop-opacity=".9"/><stop offset="1" stop-color="#c9f7a5" stop-opacity="0"/></radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#53794d" opacity=".13"/></pattern>
+  </defs>
+  <rect width="1200" height="420" rx="28" fill="url(#bg)"/>
+  <rect width="1200" height="420" rx="28" fill="url(#grid)"/>
+  <rect x="60" y="52" width="54" height="54" rx="17" fill="#b7ee8a"/>
+  <text x="70" y="89" fill="#203e2a" font-family="Arial,sans-serif" font-size="34" font-weight="900" letter-spacing="-3">iw</text>
+  <text x="132" y="88" fill="#21382b" font-family="Arial,sans-serif" font-size="29" font-weight="700">InteractiveWorld</text>
+  <text x="62" y="175" fill="#5d8050" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">FROM EVERYDAY TO EXTRAORDINARY</text>
+  <text x="58" y="240" fill="#1d3528" font-family="Arial,sans-serif" font-size="58" font-weight="700" letter-spacing="-2">Your world,</text>
+  <text x="58" y="304" fill="#4d7a35" font-family="Arial,sans-serif" font-size="58" font-weight="700" letter-spacing="-2">a little more alive.</text>
+  <text x="62" y="363" fill="#60775e" font-family="Arial,sans-serif" font-size="17">PHOTO → PROCEDURAL 3D → PLAY → REIMAGINE</text>
+  <circle cx="930" cy="220" r="190" fill="url(#glow)"/>
+  <ellipse cx="938" cy="225" rx="193" ry="100" transform="rotate(-28 938 225)" fill="none" stroke="#a8bd97" stroke-width="2"/>
+  <ellipse cx="938" cy="225" rx="130" ry="161" transform="rotate(30 938 225)" fill="none" stroke="#bfd0af"/>
+  <path d="M930 105 1037 165 1037 287 930 347 824 287 824 165Z" fill="#7eae58"/>
+  <path d="M930 105 1037 165 930 226 824 165Z" fill="#d1f9a5"/>
+  <path d="M824 165 930 226 930 347 824 287Z" fill="#b7ee8a"/>
+  <path d="M930 226 1037 165 1037 287 930 347Z" fill="#86bd5a"/>
+  <path d="m931 140 8 22 22 8-22 8-8 22-8-22-22-8 22-8Z" fill="#4d7435"/>
+  <circle cx="1102" cy="137" r="13" fill="#efbc85"/>
+  <circle cx="775" cy="307" r="8" fill="#72974e"/>
+  <circle cx="1047" cy="350" r="4" fill="#72974e"/>
+</svg>

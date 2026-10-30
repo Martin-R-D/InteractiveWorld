@@ -1,0 +1,140 @@
+<p align="center"><img src="docs/assets/banner.svg" alt="InteractiveWorld — Your world, a little more alive." width="100%" /></p>
+
+<p align="center">
+  <strong>A camera. A little imagination. A world you can touch.</strong><br/>
+  Expo 58 · React Native · Three.js · Claude Sonnet 4.6
+</p>
+
+<p align="center">
+  <a href="#run-on-your-android-phone">Quick start</a> ·
+  <a href="#a-photo-becomes-a-playground">Preview</a> ·
+  <a href="#how-it-works">Architecture</a> ·
+  <a href="TEST_RESULTS.md">Test results</a> ·
+  <a href="IMPLEMENTATION_PLAN.md">Build checkpoints</a>
+</p>
+
+# InteractiveWorld
+
+Turn a photo into a stylized procedural 3D object, interact with its parts, and change it through chat. The app uses Expo SDK 58 / React Native, locally bundled Three.js inside a WebView, and a Node backend calling Claude Sonnet 4.6 at low effort.
+
+## A photo becomes a playground
+
+| Fresh by default | A quieter dark mode |
+| :---: | :---: |
+| <img src="docs/assets/light-theme.jpg" alt="InteractiveWorld default white theme" width="300" /> | <img src="docs/assets/dark-theme.jpg" alt="InteractiveWorld saved dark theme" width="300" /> |
+
+*Actual browser screenshots at a phone-sized viewport. Physical Android verification is a separate checklist.*
+
+<p align="center"><img src="docs/assets/live-scene.jpg" alt="A real photo-generated rubber duck in InteractiveWorld's white-themed 3D viewer, with wobble and spin actions" width="360" /></p>
+
+*A real Sonnet-generated scene from the final integration test. Four live calls across photo generation and editing cost an estimated **$0.138453** in total. No mock response was used in this preview.*
+
+**Capture → create → interact → reimagine.** Photograph a desk lamp, a favorite mug, or a toy. InteractiveWorld identifies it and writes a new procedural scene while the app is running. Tap a part, try a suggested action, or ask for a change. There is no fixed catalog of object models.
+
+| Feature | What you can do |
+| --- | --- |
+| Camera + gallery | Confirm a resized photo and clarify the intended object |
+| Generated 3D | Explore a stylized object with studio lighting and shadows |
+| Playful actions | Tap parts and trigger generated animation and color changes |
+| Chat edits | Change the current creation without rebuilding or restarting |
+| White + dark themes | Switch with one tap; your choice is remembered locally |
+| Recovery | Keep the last working scene when a replacement fails |
+| Transparent usage | See API spend with a durable $5 testing ceiling |
+
+## How it works
+
+```mermaid
+flowchart LR
+    A["📷 Photo or gallery"] --> B["Phone\nResize + confirm"]
+    B --> C["Backend\nValidate + reserve budget"]
+    C --> D["Sonnet 4.6\nLow effort"]
+    D --> E["Object + scene code\nSuggested actions"]
+    E --> F["Isolated interpreter\nBounded toolkit"]
+    F --> G["Three.js WebView\nTouch + animate"]
+    G --> H["💬 Reimagine"]
+    H --> C
+    style A fill:#edf7e3,stroke:#90b971,color:#22372b
+    style D fill:#b7ee8a,stroke:#709d4e,color:#22372b
+    style G fill:#edf7e3,stroke:#90b971,color:#22372b
+```
+
+The mobile app handles photos and chat. The backend protects the API key and accounts for requests. The viewer supplies a fixed rendering toolkit, while Claude generates object-specific JavaScript inside a restricted interpreter.
+
+## Run on your Android phone
+
+Requirements: Node 24, npm, Android Expo Go compatible with SDK 58, and the phone and computer on the same trusted Wi-Fi network.
+
+1. Run `npm ci` in the project directory.
+2. Create `.env` from `.env.example` and set `CLAUDE_API`. Never prefix this key with `EXPO_PUBLIC_`.
+3. In one terminal, run `npm run server`. It prints available phone connection addresses.
+4. In a second terminal, run `npm start` and scan the QR code with Expo Go. If entering the URL manually, use `exp://YOUR_COMPUTER_WIFI_IP:8081`.
+5. The app detects the Metro host and uses port 3001. Open the top-right connection settings to correct the backend URL and tap **Test connection** if needed.
+6. Take a photo or select one, confirm the preview, and tap **Bring it to life**. Use the optional hint to identify a particular object. The photo is resized to a maximum dimension of 1024 pixels and JPEG compressed before transmission.
+
+For this workstation the observed Wi-Fi address is `192.168.100.10`; `192.168.56.1` is another adapter and may be a virtual network. Addresses can change. Test `http://YOUR_COMPUTER_WIFI_IP:3001/health` in the phone browser if connection fails. Permit Node through Windows Firewall on your private network if Windows asks. Disable neither the firewall nor certificate validation. Guest Wi-Fi/client isolation and VPN routing can prevent local connections.
+
+The backend is a local prototype for a trusted network, without account authentication. Do not expose port 3001 to the public internet. Production hosting needs HTTPS, authentication and per-user authorization/rate limits. Plain HTTP LAN testing is supported in Expo Go; for a standalone APK use an HTTPS backend URL configured through the app's connection screen.
+
+## Controls and recovery
+
+- Drag to rotate; pinch to zoom; tap **Reset view** to restore framing.
+- Tap a part or action button to activate a generated behavior; tap again to toggle/reset it.
+- Describe a change under **What if…?** and tap **Reimagine**.
+- The working scene remains while edits are generated. Invalid candidates do not replace it.
+- **Retry viewer** reuses the already generated code with no API call. **Repair scene once** requests one paid repair. No automatic paid retries occur.
+- **Reload viewer** recovers a lost graphics context using the last working scene.
+- Scenes and connection settings currently live in memory; restarting the app starts a fresh session. Theme preference is saved on the device. Backend usage persists independently.
+
+## Spending controls
+
+All paid calls fix `model: claude-sonnet-4-6`, `thinking: {type: adaptive}`, and `output_config: {effort: low}`. Input is counted before generation and limited to 16,000 tokens; output is limited to 6,000 tokens. At the documented $3/M input and $15/M output rates, each request reserves $0.138 before submission. Measured usage replaces the reservation on completion. Unknown outcomes retain the full reservation. The persisted ledger is `.local/usage.json` and the maximum cumulative test allowance is $5 (or a lower `AI_BUDGET_USD`). Do not delete the ledger to bypass the limit. API usage estimates exclude unrelated calls made outside this backend.
+
+Only one backend process may own the ledger. If a process crashes, check that no backend is running before removing its stale `.local/server.lock`. Normal shutdown removes the lock. Authentication errors and explicit upstream request rejections release their reservation; network/timeouts remain conservatively charged. SDK retries are not used.
+
+## Development and verification
+
+```text
+npm run typecheck
+npm test
+npm run viewer:build
+npx expo-doctor
+npx expo export --platform android --platform web
+npm run web
+node --env-file=.env scripts/check-secrets.mjs
+```
+
+Rebuild the viewer after editing `viewer/`. The generated HTML is checked in so a clean checkout can run directly. Browser UI checks complement but do not replace Android device checks. There are no mock responses in the app flow; tests use explicitly fake transports and never require credentials.
+
+For a no-cost renderer recovery check, run `npm run viewer:build`, then `node scripts/viewer-qa.mjs` and open `http://localhost:3002`. The explicitly labeled fixture verifies blocked host access, loop termination, and the previous scene's action after failed replacements.
+
+## APK
+
+`eas.json` contains an internal-distribution `preview` profile with Android `buildType: apk`.
+
+```text
+npx eas-cli login
+npx eas-cli build:configure
+npx eas-cli build --platform android --profile preview
+```
+
+Link the project to your own Expo account when prompted. Download the APK from the completed EAS build link and install it on Android. This requires an Expo account, network access and EAS availability; the repository does not contain an already-built APK. Google Play release is outside this prototype.
+
+## Design and boundaries
+
+- `App.tsx`, `mobile/`: native photo flow, UI, and tightly constrained viewer bridge.
+- `viewer/`: fixed renderer and restricted ES5 interpreter. Generated source never runs through host `eval` and receives only JSON-based material, part and action operations.
+- `shared/contract.mjs`: schemas and documented generation toolkit.
+- `server/`: validation, Claude transport and durable budget ledger. Secrets and photos are not written to logs.
+- `tests/`: deterministic contract, budget and interpreter regression tests.
+
+The viewer uses fixed bundled dependencies, CSP blocking network resources, disabled file access, and navigation restrictions. Browser preview additionally uses an opaque-origin sandboxed iframe. Mobile isolation relies on the interpreter and WebView controls, not an assumption that iframe sandboxing applies to Android. Complexity and interpreter-step limits reduce hangs; severe WebView resource exhaustion can still require reloading its process. Arbitrary callbacks/imports are intentionally outside the toolkit; generated code composes many objects and behaviors through geometry and parameterized animation tracks.
+
+See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and [TEST_RESULTS.md](TEST_RESULTS.md) for checkpoints and the physical-phone acceptance checklist.
+
+## References
+
+- [Sonnet 4.6 model and pricing](https://platform.claude.com/docs/en/models/sonnet-4-6/overview)
+- [Effort settings](https://platform.claude.com/docs/en/build-with-claude/effort)
+- [Expo Go versions](https://expo.dev/go)
+- Live cup test photograph: [Coffee cup - beskaaret 2.JPG](https://commons.wikimedia.org/wiki/File:Coffee_cup_-_beskaaret_2.JPG), Øyvind Holmstad, CC0. Downloaded only to ignored local test artifacts.
+- Live duck test photograph: [Yellow Rubber Duck.jpg](https://commons.wikimedia.org/wiki/File:Yellow_Rubber_Duck.jpg), RandomPerson238, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Resized for testing; downloaded only to ignored local test artifacts. Scene screenshots show generated procedural geometry.
