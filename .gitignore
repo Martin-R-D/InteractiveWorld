@@ -35,3 +35,7 @@ Thumbs.db
 *.apk
 *.aab
 *.ipa
+
+# Private runtime state and local test artifacts
+.local/
+artifacts/

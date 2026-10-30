@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "InteractiveWorld",
+    "slug": "interactiveworld",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "android": { "package": "com.interactiveworld.app", "permissions": ["CAMERA"] },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a photo to bring an object to life in InteractiveWorld.",
+          "cameraPermission": "Photograph an object to bring it to life in InteractiveWorld.",
+          "microphonePermission": false
+        }
+      ]
+    ]
+  }
+}
