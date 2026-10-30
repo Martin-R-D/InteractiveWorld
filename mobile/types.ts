@@ -3,13 +3,14 @@ export type Scene = {
   name: string;
   description: string;
   code: string;
-  actions: { id: string; label: string }[]};
+  actions: { id: string; label: string; sound?: string }[]};
 export type ViewerMessage = {
   type: 'ready' | 'loaded' | 'error' | 'fatal' | 'action';
   id?: string;
   message?: string};
 export type ViewerProps = {
   dark: boolean;
+  muted: boolean;
   scene: Scene | null;
   sceneId: string;
   onMessage: (message: ViewerMessage) => void;

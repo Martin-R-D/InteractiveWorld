@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createSoundPlayer } from './sounds.mjs';
 import { executeScene } from './sandbox.mjs';
 
 const send = (type, payload = {}) => {
@@ -24,6 +25,7 @@ const color = c => {
   return c;
 };
 let renderer, camera, controls, world, current, candidate, currentId;
+const soundPlayer = createSoundPlayer();
 const raycaster = new THREE.Raycaster();
 const dispose = s => {
   if (!s) return;
@@ -152,6 +154,7 @@ function makeScene(data) {
       throw new Error('Scene dimensions are invalid');
     root.position.y -= box.min.y;
     box.setFromObject(root);
+    for (const meta of data.actions) actions.get(meta.id).sound = meta.sound;
     return { root, parts, materials, actions, active, box };
   } catch (e) {
     dispose({ root, materials });
@@ -171,6 +174,7 @@ function resetView() {
 function action(id) {
   const a = current?.actions.get(id);
   if (!a) return;
+  soundPlayer.play(a.sound);
   const was = current.active.get(id);
   const on = !(was?.on);
   // Remove conflicting property tracks so the latest requested action has control.
@@ -208,6 +212,7 @@ function receive(raw) {
           if (previous) world.add(previous.root);
           throw e;
         }
+        soundPlayer.stop();
         current = next;
         currentId = m.id;
         dispose(previous);
@@ -218,6 +223,7 @@ function receive(raw) {
         send('error', { id: m.id, message: String(e.message).slice(0, 300) });
       }
     } else if (m.type === 'action' && typeof m.id === 'string') action(m.id);
+    else if (m.type === 'mute' && typeof m.muted === 'boolean') soundPlayer.mute(m.muted);
     else if (m.type === 'reset') resetView();
     else if (m.type === 'theme' && typeof m.dark === 'boolean') {
       const bg = m.dark ? '#152225' : '#edf3e9';
@@ -286,6 +292,7 @@ try {
   resize();
   let down;
   renderer.domElement.addEventListener('pointerdown',e=> {
+    soundPlayer.unlock();
     down = { x: e.clientX, y: e.clientY, t: performance.now() };
   });
   renderer.domElement.addEventListener('pointerup',e=> {
@@ -332,6 +339,10 @@ try {
     renderer.render(world, camera);
   }
   frame();
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) soundPlayer.stop();
+  });
+  window.addEventListener('pagehide', () => soundPlayer.stop());
   window.InteractiveWorldReceive = receive;
   window.addEventListener('message',e=> {
     if (e.source === window.parent) receive(e.data);

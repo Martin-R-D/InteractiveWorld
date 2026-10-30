@@ -70,6 +70,7 @@ function Main() {
     [error, setError] = useState(''),
     [clarification, setClarification] = useState<{ question: string; choices: string[] } | null>(
       null);
+  const [muted, setMuted] = useState(false);
   const [viewerKey, setViewerKey] = useState(0),
     [command, setCommand] = useState<{
       type: 'reset' | 'action';
@@ -343,6 +344,7 @@ function Main() {
                 <SceneViewer
                   key={viewerKey}
                   dark={dark}
+                  muted={muted}
                   scene={candidate?.scene ?? current}
                   sceneId={candidate?.id ?? workingId.current}
                   onMessage={viewerMessage}

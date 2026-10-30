@@ -36,6 +36,7 @@ Turn a photo into a stylized procedural 3D object, interact with its parts, and 
 | Camera + gallery | Confirm a resized photo and clarify the intended object |
 | Generated 3D | Explore a stylized object with studio lighting and shadows |
 | Playful actions | Tap parts and trigger generated animation and color changes |
+| Object sounds | Contextual clicks, squeaks, taps and chimes selected by Claude; mute from the viewer |
 | Chat edits | Change the current creation without rebuilding or restarting |
 | White + dark themes | Switch with one tap; your choice is remembered locally |
 | Recovery | Keep the last working scene when a replacement fails |
@@ -78,6 +79,7 @@ The backend is a local prototype for a trusted network, without account authenti
 
 - Drag to rotate; pinch to zoom; tap **Reset view** to restore framing.
 - Tap a part or action button to activate a generated behavior; tap again to toggle/reset it.
+- Claude may attach a short local sound to an action when it suits the object, such as a retractable pen click. Silent actions stay silent. Use **Sound on / Sound off** in the viewer to mute. In browsers, tap the 3D viewer first to enable audio. Effects are synthesized approximations, not recordings of the photographed object. Existing scenes remain compatible; generate a new scene or request an edit to add sound.
 - Describe a change under **What if…?** and tap **Reimagine**.
 - The working scene remains while edits are generated. Invalid candidates do not replace it.
 - **Retry viewer** reuses the already generated code with no API call. **Repair scene once** requests one paid repair. No automatic paid retries occur.

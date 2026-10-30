@@ -2,7 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { WebView } from 'react-native-webview';
 import { viewerHtml } from './generated/viewerHtml';
 import { parseMessage, ViewerProps } from './types';
-export default function SceneViewer({ dark, scene, sceneId, onMessage, command }: ViewerProps) {
+export default function SceneViewer({
+  dark,
+  muted,
+  scene,
+  sceneId,
+  onMessage,
+  command}: ViewerProps) {
   const ref = useRef<WebView<{}>>(null);
   const [ready, setReady] = useState(false);
   const send = (value: unknown) =>
@@ -17,11 +23,15 @@ export default function SceneViewer({ dark, scene, sceneId, onMessage, command }
   useEffect(() => {
     if (ready) send({ type: 'theme', dark });
   }, [ready, dark]);
+  useEffect(() => {
+    if (ready) send({ type: 'mute', muted });
+  }, [ready, muted]);
   return <WebView<{}>
       ref={ref}
       source={{ html: viewerHtml, baseUrl: 'about:blank' }}
       style={{ flex: 1, backgroundColor: '#152225' }}
       originWhitelist={['about:blank']}
+      mediaPlaybackRequiresUserAction={false}
       javaScriptEnabled
       domStorageEnabled={false}
       allowFileAccess={false}
