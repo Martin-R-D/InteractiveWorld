@@ -300,13 +300,7 @@ function Main() {
               </Pressable>
             </View>
           </View>
-          <View style={s.statusRow}>
-            <View
-              style={[
-                s.dot,
-                { backgroundColor: connection.startsWith('Connected') ? '#b7ee8a' : '#e5b76f' }]}
-            />
-            <Text style={s.status}>{connection}</Text>
+          <View style={[s.statusRow, { justifyContent: 'flex-end' }]}>
             <Text style={s.edition}>EXPERIMENT 01</Text>
           </View>
           {settings &&<View style={s.card}>
@@ -471,7 +465,7 @@ function Main() {
                     onPress={() => setCommand({ type: 'action', id: a.id, serial: Date.now() })}
                     style={[s.action, busy && { opacity:.4 }]}
                   >
-                    <Text style={s.actionText}>✧  {a.label}</Text>
+                    <Text style={s.actionText}>{a.label}</Text>
                   </Pressable>)}
               </View>
               <Text style={s.small}>{note}</Text>
