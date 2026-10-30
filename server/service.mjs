@@ -1,5 +1,6 @@
 import { MODEL, MAX_OUTPUT, MAX_INPUT } from './budget.mjs';
 import { SYSTEM, resultSchema } from '../shared/contract.mjs';
+import { createHash } from 'node:crypto';
 export function createService({ key, budget, transport = fetch }) {
   let busy = false;
   const cache = new Map();
@@ -61,7 +62,10 @@ export function createService({ key, budget, transport = fetch }) {
         throw Object.assign(
           new Error('Request context is too large. Choose a smaller photo or start a new scene.'),
           { status: 400 });
-      reservation = budget.reserve(request.requestId, request.mode);
+      reservation = budget.reserve(
+        request.requestId,
+        request.mode,
+        repairKey ? createHash('sha256').update(repairKey).digest('hex') : undefined);
       if (repairKey) repaired.add(repairKey);
       const response = await post('messages', {
         ...base,
@@ -70,7 +74,9 @@ export function createService({ key, budget, transport = fetch }) {
         output_config: { effort: 'low' }});
       budget.settle(reservation, response.usage, Date.now() - start);
       if (response.stop_reason !== 'end_turn')
-        throw new Error('Scene generation was incomplete. Try a simpler object or request.');
+        throw Object.assign(
+          new Error('Scene generation was incomplete. Try a simpler object or request.'),
+          { status: 502 });
       const text = response.content
         .filter(b=> b.type === 'text')
         .map(b=> b.text)
@@ -80,8 +86,15 @@ export function createService({ key, budget, transport = fetch }) {
         result = resultSchema.parse(
           JSON.parse(text.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '')));
       } catch {
-        throw new Error('Claude returned an invalid scene response. Your previous scene is safe.');
+        throw Object.assign(
+          new Error('Claude returned an invalid scene response. Your previous scene is safe.'),
+          { status: 502 });
       }
+      if (request.mode !== 'generate' && result.kind === 'clarification')
+        throw Object.assign(
+          new Error(
+            'That change needs more detail. Please describe the desired change more specifically.'),
+          { status: 422 });
       const output = { result, usage: { ...reservation }, budget: budget.summary() };
       cache.set(request.requestId, output);
       if (cache.size > 30) cache.delete(cache.keys().next().value);

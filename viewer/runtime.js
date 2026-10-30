@@ -47,7 +47,14 @@ function makeScene(data) {
     part(id, s) {
       if (parts.has(id) || parts.size >= 120) throw new Error('Duplicate part or part limit');
       let geometry, object;
-      const a = vector(s.size, [1, 1, 1]);
+      const raw = s.size ?? [1, 1, 1];
+      if (!Array.isArray(raw) || raw.length < 1 || raw.length > 3)
+        throw new Error('Invalid shape dimensions');
+      const a = [finite(raw[0], 1), finite(raw[1], raw[0] ?? 1), finite(raw[2], 1)];
+      if ((s.shape === 'cylinder' || s.shape === 'cone') && raw.length === 2) {
+        a[1] = a[0];
+        a[2] = finite(raw[1]);
+      }
       if (a.some(v=> v < 0) || a.every(v=> v === 0)) throw new Error('Invalid geometry size');
       switch (s.shape) {
         case 'group': object= new THREE.Group();
@@ -59,13 +66,18 @@ function makeScene(data) {
           geometry = new THREE.SphereGeometry(a[0], 24, 16);
           break;
         case 'cylinder':
-          geometry = new THREE.CylinderGeometry(a[0], a[1], a[2], 24);
+          geometry = new THREE.CylinderGeometry(a[0], a[1], a[2], 32, 1, s.openEnded === true);
           break;
         case 'cone':
           geometry = new THREE.ConeGeometry(a[1], a[2], 24);
           break;
         case 'torus':
-          geometry = new THREE.TorusGeometry(a[0], a[1], 12, 32);
+          geometry = new THREE.TorusGeometry(
+            a[0],
+            a[1],
+            12,
+            40,
+            finite(s.arc, Math.PI * 2, Math.PI * 2));
           break;
         default:
           throw new Error('Unsupported shape');
@@ -81,6 +93,9 @@ function makeScene(data) {
       }
       object.position.fromArray(vector(s.position));
       object.rotation.set(...vector(s.rotation));
+      const scale = vector(s.scale, [1, 1, 1]);
+      if (scale.some(v=> v <= 0 || v > 5)) throw new Error('Invalid part scale');
+      object.scale.fromArray(scale);
       object.userData.action = s.action;
       object.name = id;
       const parent = s.parent ? parts.get(s.parent) : root;
@@ -135,6 +150,8 @@ function makeScene(data) {
     const size = box.getSize(new THREE.Vector3());
     if (!Number.isFinite(size.length()) || size.length() <.1 || size.length() > 35)
       throw new Error('Scene dimensions are invalid');
+    root.position.y -= box.min.y;
+    box.setFromObject(root);
     return { root, parts, materials, actions, active, box };
   } catch (e) {
     dispose({ root, materials });
@@ -244,12 +261,20 @@ try {
   floor.position.y = -.03;
   floor.receiveShadow = true;
   world.add(floor);
+  let width = 0,
+    height = 0;
   const resize = () => {
-    renderer.setSize(innerWidth, innerHeight);
-    camera.aspect = innerWidth / innerHeight;
+    const w = Math.max(1, innerWidth),
+      h = Math.max(1, innerHeight);
+    if (w === width && h === height) return;
+    width = w;
+    height = h;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
     camera.updateProjectionMatrix();
   };
   addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(document.documentElement);
   resize();
   let down;
   renderer.domElement.addEventListener('pointerdown',e=> {
@@ -278,6 +303,7 @@ try {
   });
   function frame() {
     requestAnimationFrame(frame);
+    resize();
     const now = performance.now() / 1000;
     if (current)
       for (const a of current.active.values())

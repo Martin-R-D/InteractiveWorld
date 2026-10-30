@@ -99,3 +99,73 @@ test('invalid AI output is charged but cannot replace a scene', async t=> {
   await assert.rejects(run(request), /invalid scene/);
   assert.ok(b.summary().spent > 0);
 });
+test('repair attempts remain bounded across backend restarts',t=> {
+  const b = ledger(t);
+  const e = b.reserve('repair-1', 'repair', 'scene-hash');
+  b.settle(e, { input_tokens: 100, output_tokens: 100 }, 10);
+  const restarted = new Budget(b.path, 5);
+  assert.throws(() => restarted.reserve('repair-2', 'repair', 'scene-hash'), /one repair/);
+});
+test('simultaneous calls cannot spend twice', async t=> {
+  const b = ledger(t);
+  let release;
+  const held = new Promise(resolve=> {
+    release = resolve;
+  });
+  const run = createService({
+    key: 'fake',
+    budget: b,
+    transport: async url=> {
+      if (url.endsWith('count_tokens'))
+        return { ok: true, json: async () => ({ input_tokens: 100 }) };
+      await held;
+      return {
+        ok: true,
+        json: async () => ({
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 100, output_tokens: 100 },
+          content: [{ type: 'text', text: JSON.stringify(scene) }]})};
+    }});
+  const first = run(request);
+  await assert.rejects(run({ ...request, requestId: 'second' }), /already being generated/);
+  release();
+  await first;
+  assert.equal(b.entries.length, 1);
+});
+test('explicit authentication rejection costs zero and gives a useful error', async t=> {
+  const b = ledger(t);
+  const run = createService({
+    key: 'fake',
+    budget: b,
+    transport: async url=>
+      url.endsWith('count_tokens')
+        ? { ok: true, json: async () => ({ input_tokens: 100 }) }
+        : { ok: false, status: 401 }});
+  await assert.rejects(run(request), /key was rejected/);
+  assert.equal(b.summary().spent, 0);
+});
+test('edits send current scene and prompt without resending the photo', async t=> {
+  const b = ledger(t);
+  const run = createService({
+    key: 'fake',
+    budget: b,
+    transport: async (url, options) => {
+      const body = JSON.parse(options.body);
+      assert.equal(body.messages[0].content.length, 1);
+      assert.equal(body.messages[0].content[0].type, 'text');
+      assert.ok(body.messages[0].content[0].text.includes('Make it purple'));
+      return {
+        ok: true,
+        json: async () =>
+          url.endsWith('count_tokens')
+            ? { input_tokens: 100 }
+            : {
+                stop_reason: 'end_turn',
+                usage: { input_tokens: 100, output_tokens: 100 },
+                content: [{ type: 'text', text: JSON.stringify(scene) }]}};
+    }});
+  await run({ ...request, mode: 'edit', scene, prompt: 'Make it purple' });
+});
+test('budget ceiling cannot be configured above five dollars',t=> {
+  assert.equal(ledger(t, 50).limit, 5);
+});

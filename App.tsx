@@ -73,6 +73,8 @@ function Main() {
       serial: number} | null>(null),
     [note, setNote] = useState(''),
     [repaired, setRepaired] = useState(false);
+  const [viewerTouch, setViewerTouch] = useState(false);
+  const workingId = useRef('working');
   const locked = useRef(false),
     pending = useRef<typeof candidate>(null),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -202,14 +204,18 @@ function Main() {
         }
       }, 15000);
     } catch (e) {
+      const message = e instanceof Error ? e.message : '';
       setError(
-        e instanceof Error ? e.message : 'Connection interrupted. Your previous scene is safe.');
+        /fetch|network|abort|timeout/i.test(message)
+          ? 'Could not reach the backend. Check your Wi-Fi and connection settings. Your previous scene is safe.'
+          : message || 'Connection interrupted. Your previous scene is safe.');
       unlock();
       void check();
     }
   }
   function viewerMessage(m: ViewerMessage) {
     if (m.type === 'loaded' && pending.current && m.id === pending.current.id) {
+      workingId.current = m.id;
       setCurrent(pending.current.scene);
       pending.current = null;
       setCandidate(null);
@@ -235,13 +241,33 @@ function Main() {
     }
     if (m.type === 'action') setNote('Interaction activated · tap again to reset');
   }
+  function retryViewer() {
+    if (!failed || busy) return;
+    const next = { scene: failed, id: Crypto.randomUUID() };
+    pending.current = next;
+    locked.current = true;
+    setCandidate(next);
+    setError('');
+    setPhase('Preparing your interactive scene…');
+    setViewerKey(k=> k + 1);
+    timer.current = setTimeout(() => {
+      pending.current = null;
+      setCandidate(null);
+      setError('Viewer did not respond. Try repairing the scene.');
+      unlock();
+    }, 15000);
+  }
   return <SafeAreaView style={s.safe}>
       <StatusBar style="light" />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={s.page}
+          keyboardShouldPersistTaps="handled"
+          scrollEnabled={!viewerTouch}
+        >
           <View style={s.header}>
             <View style={s.brandRow}>
               <View style={s.logo}>
@@ -293,11 +319,16 @@ function Main() {
               <Text style={s.muted}>{current?.description ?? candidate?.scene.description}</Text>
             </View>}
           {viewing &&<View style={s.viewerCard}>
-              <View style={s.viewer}>
+              <View
+                style={s.viewer}
+                onTouchStart={() => setViewerTouch(true)}
+                onTouchEnd={() => setViewerTouch(false)}
+                onTouchCancel={() => setViewerTouch(false)}
+              >
                 <SceneViewer
                   key={viewerKey}
                   scene={candidate?.scene ?? current}
-                  sceneId={candidate?.id ?? 'working'}
+                  sceneId={candidate?.id ?? workingId.current}
                   onMessage={viewerMessage}
                   command={command}
                 />
@@ -388,6 +419,12 @@ function Main() {
           {!!error &&<View accessibilityLiveRegion="polite" style={s.error}>
               <Text style={s.errorTitle}>Let’s try that again</Text>
               <Text style={s.errorText}>{error}</Text>
+              {failed &&<Button
+                  label="Retry viewer · no API call"
+                  onPress={retryViewer}
+                  disabled={busy}
+                  secondary
+                />}
               {failed && !repaired &&<Button
                   label="Repair scene once"
                   onPress={() => void generate('repair')}

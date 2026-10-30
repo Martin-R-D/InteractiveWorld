@@ -43,7 +43,7 @@ export class Budget {
           durationMs,
           mode}))};
   }
-  reserve(id, mode) {
+  reserve(id, mode, repairHash) {
     if (this.entries.some(e=> e.id === id))
       throw Object.assign(
         new Error('This request was already submitted. Check the existing result before retrying.'),
@@ -51,6 +51,9 @@ export class Budget {
     if (this.summary().remaining + 1e-9 < RESERVATION)
       throw Object.assign(new Error('Testing budget reached. No paid request was sent.'), {
         status: 402});
+    if (repairHash && this.entries.some(e=> e.repairHash === repairHash))
+      throw Object.assign(new Error('This scene already had its one repair attempt.'), {
+        status: 409});
     const entry = {
       id,
       mode,
@@ -58,7 +61,8 @@ export class Budget {
       effort: 'low',
       status: 'reserved',
       cost: RESERVATION,
-      at: new Date().toISOString()};
+      at: new Date().toISOString(),
+      ...(repairHash ? { repairHash } : {})};
     this.entries.push(entry);
     this.save();
     return entry;

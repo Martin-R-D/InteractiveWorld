@@ -6,12 +6,23 @@ export default function SceneViewer({ scene, sceneId, onMessage, command }: View
   const [ready, setReady] = useState(false);
   const callback = useRef(onMessage);
   callback.current = onMessage;
+  const latest = useRef({ scene, sceneId });
+  latest.current = { scene, sceneId };
   useEffect(() => {
     const receive = (e: MessageEvent) => {
       if (e.source !== ref.current?.contentWindow || typeof e.data !== 'string') return;
       const m = parseMessage(e.data);
       if (m) {
-        if (m.type === 'ready') setReady(true);
+        if (m.type === 'ready') {
+          setReady(true);
+          if (latest.current.scene)
+            ref.current?.contentWindow?.postMessage(
+              JSON.stringify({
+                type: 'load',
+                id: latest.current.sceneId,
+                scene: latest.current.scene}),
+              '*');
+        }
         callback.current(m);
       }
     };
