@@ -39,7 +39,7 @@ Turn a photo into a stylized procedural 3D object, interact with its parts, and 
 | Chat edits | Change the current creation without rebuilding or restarting |
 | White + dark themes | Switch with one tap; your choice is remembered locally |
 | Recovery | Keep the last working scene when a replacement fails |
-| Transparent usage | See API spend with a durable $5 testing ceiling |
+| Controlled usage | Backend tracks API spend with a durable $5 testing ceiling |
 
 ## How it works
 
@@ -83,6 +83,7 @@ The backend is a local prototype for a trusted network, without account authenti
 - The working scene remains while edits are generated. Invalid candidates do not replace it.
 - **Retry viewer** reuses the already generated code with no API call. **Repair scene once** requests one paid repair. No automatic paid retries occur.
 - **Reload viewer** recovers a lost graphics context using the last working scene.
+- If recognition fails, the app explains how to improve the photo and offers **Try another photo** (gallery) and **Take a new photo** (camera). Opening either picker does not generate a scene or spend tokens; the new photo still requires confirmation.
 - Scenes and connection settings currently live in memory; restarting the app starts a fresh session. Theme preference is saved on the device. Backend usage persists independently.
 
 ## Spending controls

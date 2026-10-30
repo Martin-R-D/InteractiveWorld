@@ -169,3 +169,30 @@ test('edits send current scene and prompt without resending the photo', async t=
 test('budget ceiling cannot be configured above five dollars',t=> {
   assert.equal(ledger(t, 50).limit, 5);
 });
+test('unrecognizable photos return a retryable outcome without scene code', async t=> {
+  const b = ledger(t);
+  const outcome = {
+    kind: 'unrecognized',
+    reason: 'The image is too blurry to identify an object.'};
+  let paidCalls = 0;
+  const run = createService({
+    key: 'fake',
+    budget: b,
+    transport: async url=> {
+      if (url.endsWith('count_tokens'))
+        return { ok: true, json: async () => ({ input_tokens: 100 }) };
+      paidCalls++;
+      return {
+        ok: true,
+        json: async () => ({
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 100, output_tokens: 30 },
+          content: [{ type: 'text', text: JSON.stringify(outcome) }]})};
+    }});
+  const output = await run(request);
+  assert.deepEqual(output.result, outcome);
+  assert.equal(output.result.code, undefined);
+  assert.ok(output.budget.spent > 0);
+  await run(request);
+  assert.equal(paidCalls, 1);
+});

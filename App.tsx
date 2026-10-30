@@ -79,6 +79,7 @@ function Main() {
       serial: number} | null>(null),
     [note, setNote] = useState(''),
     [repaired, setRepaired] = useState(false);
+  const [errorTitle, setErrorTitle] = useState('Let’s try that again');
   const [viewerTouch, setViewerTouch] = useState(false);
   const workingId = useRef('working');
   const locked = useRef(false),
@@ -109,7 +110,6 @@ function Main() {
     []);
   async function choose(camera: boolean) {
     if (locked.current) return;
-    setError('');
     try {
       if (camera) {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -133,6 +133,8 @@ function Main() {
         { compress:.75, format: ImageManipulator.SaveFormat.JPEG, base64: true });
       if (!resized.base64 || resized.base64.length > 1600000)
         throw new Error('That photo is too large. Try another image.');
+      setError('');
+      setErrorTitle('Let’s try that again');
       setPhoto({ uri: resized.uri, data: resized.base64, mediaType: 'image/jpeg' });
       setClarification(null);
       setTarget('');
@@ -157,6 +159,7 @@ function Main() {
       return;
     }
     const repairError = error;
+    setErrorTitle('We couldn’t create your scene');
     locked.current = true;
     setPhase(
       mode === 'generate'
@@ -190,6 +193,13 @@ function Main() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? 'Scene request failed.');
       setUsage(body.budget);
+      if (body.result.kind === 'unrecognized') {
+        setErrorTitle('We couldn’t find an object');
+        setError(
+          'Try a clearer photo with one object in good lighting. Move closer and keep the whole object in view.');
+        unlock();
+        return;
+      }
       if (body.result.kind === 'clarification') {
         setClarification(body.result);
         unlock();
@@ -428,8 +438,19 @@ function Main() {
               </View>
             </View>}
           {!!error &&<View accessibilityLiveRegion="polite" style={s.error}>
-              <Text style={s.errorTitle}>Let’s try that again</Text>
+              <Text style={s.errorTitle}>{errorTitle}</Text>
               <Text style={s.errorText}>{error}</Text>
+              <Button
+                label="Try another photo"
+                onPress={() => void choose(false)}
+                disabled={busy}
+              />
+              <Button
+                label="Take a new photo"
+                onPress={() => void choose(true)}
+                disabled={busy}
+                secondary
+              />
               {failed &&<Button
                   label="Retry viewer · no API call"
                   onPress={retryViewer}
@@ -510,11 +531,6 @@ function Main() {
             </>}
           <View style={s.footer}>
             <Text style={s.footerBrand}>Small objects. Endless possibilities.</Text>
-            <Text style={s.small}>
-              {usage
-                ? `API usage $${usage.spent.toFixed(4)} / $${usage.limit.toFixed(2)} · ${usage.requests} requests`
-                : 'SONNET 4.6 · LOW EFFORT'}
-            </Text>
             <Text style={s.disclaimer}>An imaginative interpretation, inspired by your photo.</Text>
           </View>
         </ScrollView>

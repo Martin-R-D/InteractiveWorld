@@ -90,7 +90,7 @@ export function createService({ key, budget, transport = fetch }) {
           new Error('Claude returned an invalid scene response. Your previous scene is safe.'),
           { status: 502 });
       }
-      if (request.mode !== 'generate' && result.kind === 'clarification')
+      if (request.mode !== 'generate' && result.kind !== 'scene')
         throw Object.assign(
           new Error(
             'That change needs more detail. Please describe the desired change more specifically.'),
