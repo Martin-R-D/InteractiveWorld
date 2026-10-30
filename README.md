@@ -36,7 +36,7 @@ Turn a photo into a stylized procedural 3D object, interact with its parts, and 
 | Camera + gallery | Confirm a resized photo and clarify the intended object |
 | Generated 3D | Explore a stylized object with studio lighting and shadows |
 | Playful actions | Tap parts and trigger generated animation and color changes |
-| Object sounds | Contextual clicks, squeaks, taps and chimes selected by Claude; mute from the viewer |
+| Object sounds | 21 contextual sound effects selected by Claude; mute from the viewer |
 | Chat edits | Change the current creation without rebuilding or restarting |
 | White + dark themes | Switch with one tap; your choice is remembered locally |
 | Recovery | Keep the last working scene when a replacement fails |
@@ -86,6 +86,22 @@ The backend is a local prototype for a trusted network, without account authenti
 - **Reload viewer** recovers a lost graphics context using the last working scene.
 - If recognition fails, the app explains how to improve the photo and offers **Try another photo** (gallery) and **Take a new photo** (camera). Opening either picker does not generate a scene or spend tokens; the new photo still requires confirmation.
 - Scenes and connection settings currently live in memory; restarting the app starts a fresh session. Theme preference is saved on the device.
+
+## Local sound library
+
+Claude selects sounds per interaction, and can leave an action silent. All 21 effects are synthesized locally; no audio downloads or additional AI calls are needed. These are playful approximations, not realistic recordings.
+
+| Sounds | Example uses |
+| --- | --- |
+| Pen click, switch click, tick | Pens, switches, clocks, latches |
+| Tap, knock, thud | Solid objects, wooden boxes, cushions |
+| Bell, chime, clink | Bells, ornaments, glasses, coins |
+| Pop, boing, squeak, rattle | Lids, springs, rubber toys, shakers |
+| Beep, buzz, horn | Electronics, toy motors, vehicles |
+| Pluck, drum, whistle | Strings, hollow containers, whistles |
+| Drip, hoofbeats | Water drops, walking horse figures |
+
+Sound definitions and object guidance live in `shared/sounds.mjs`. Buzzes and hoofbeats are short bursts; there are no continuous loops or synthesized animal voices.
 
 ## Development and verification
 
