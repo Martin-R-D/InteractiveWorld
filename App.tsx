@@ -21,7 +21,6 @@ import { Scene, ViewerMessage } from './mobile/types';
 import { ThemeProvider, useTheme } from './mobile/theme';
 
 type Photo = { uri: string; data: string; mediaType: 'image/jpeg' };
-type Usage = { spent: number; limit: number; remaining: number; requests: number };
 const host = Constants.expoConfig?.hostUri?.split(':')[0] ?? 'localhost';
 function Button({
   label,
@@ -69,7 +68,6 @@ function Main() {
     [failed, setFailed] = useState<Scene | null>(null);
   const [phase, setPhase] = useState(''),
     [error, setError] = useState(''),
-    [usage, setUsage] = useState<Usage | null>(null),
     [clarification, setClarification] = useState<{ question: string; choices: string[] } | null>(
       null);
   const [viewerKey, setViewerKey] = useState(0),
@@ -94,8 +92,6 @@ function Main() {
       const h = await r.json();
       if (!r.ok || h.name !== 'InteractiveWorld') throw new Error();
       setConnection(h.ready ? 'Connected · Sonnet 4.6' : 'Backend needs CLAUDE_API');
-      const u = await fetch(endpoint + '/usage');
-      setUsage(await u.json());
     } catch {
       setConnection('Backend offline · check connection');
     }
@@ -192,7 +188,6 @@ function Main() {
                 error: mode === 'repair' ? repairError.slice(0, 400) : undefined})})});
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? 'Scene request failed.');
-      setUsage(body.budget);
       if (body.result.kind === 'unrecognized') {
         setErrorTitle('We couldn’t find an object');
         setError(

@@ -39,3 +39,7 @@ Thumbs.db
 # Private runtime state and local test artifacts
 .local/
 artifacts/
+
+# Local development notes
+IMPLEMENTATION_PLAN.md
+TEST_RESULTS.md

@@ -27,7 +27,7 @@ Turn a photo into a stylized procedural 3D object, interact with its parts, and 
 
 <p align="center"><img src="docs/assets/live-scene.jpg" alt="A real photo-generated rubber duck in InteractiveWorld's white-themed 3D viewer, with wobble and spin actions" width="360" /></p>
 
-*A real Sonnet-generated scene from the final integration test. Four live calls across photo generation and editing cost an estimated **$0.138453** in total. No mock response was used in this preview.*
+*A real Sonnet-generated scene from the final integration test. No mock response was used in this preview.*
 
 **Capture → create → interact → reimagine.** Photograph a desk lamp, a favorite mug, or a toy. InteractiveWorld identifies it and writes a new procedural scene while the app is running. Tap a part, try a suggested action, or ask for a change. There is no fixed catalog of object models.
 
@@ -39,14 +39,13 @@ Turn a photo into a stylized procedural 3D object, interact with its parts, and 
 | Chat edits | Change the current creation without rebuilding or restarting |
 | White + dark themes | Switch with one tap; your choice is remembered locally |
 | Recovery | Keep the last working scene when a replacement fails |
-| Controlled usage | Backend tracks API spend with a durable $5 testing ceiling |
 
 ## How it works
 
 ```mermaid
 flowchart LR
     A["📷 Photo or gallery"] --> B["Phone\nResize + confirm"]
-    B --> C["Backend\nValidate + reserve budget"]
+    B --> C["Backend\nValidate + generate"]
     C --> D["Sonnet 4.6\nLow effort"]
     D --> E["Object + scene code\nSuggested actions"]
     E --> F["Isolated interpreter\nBounded toolkit"]
@@ -58,7 +57,7 @@ flowchart LR
     style G fill:#edf7e3,stroke:#90b971,color:#22372b
 ```
 
-The mobile app handles photos and chat. The backend protects the API key and accounts for requests. The viewer supplies a fixed rendering toolkit, while Claude generates object-specific JavaScript inside a restricted interpreter.
+The mobile app handles photos and chat. The backend protects the API key and validates requests. The viewer supplies a fixed rendering toolkit, while Claude generates object-specific JavaScript inside a restricted interpreter.
 
 ## Run on your Android phone
 
@@ -71,7 +70,7 @@ Requirements: Node 24, npm, Android Expo Go compatible with SDK 58, and the phon
 5. The app detects the Metro host and uses port 3001. Open the top-right connection settings to correct the backend URL and tap **Test connection** if needed.
 6. Take a photo or select one, confirm the preview, and tap **Bring it to life**. Use the optional hint to identify a particular object. The photo is resized to a maximum dimension of 1024 pixels and JPEG compressed before transmission.
 
-For this workstation the observed Wi-Fi address is `192.168.100.10`; `192.168.56.1` is another adapter and may be a virtual network. Addresses can change. Test `http://YOUR_COMPUTER_WIFI_IP:3001/health` in the phone browser if connection fails. Permit Node through Windows Firewall on your private network if Windows asks. Disable neither the firewall nor certificate validation. Guest Wi-Fi/client isolation and VPN routing can prevent local connections.
+Test `http://YOUR_COMPUTER_WIFI_IP:3001/health` in the phone browser if connection fails. Permit Node through Windows Firewall on your private network if Windows asks. Disable neither the firewall nor certificate validation. Guest Wi-Fi/client isolation and VPN routing can prevent local connections.
 
 The backend is a local prototype for a trusted network, without account authentication. Do not expose port 3001 to the public internet. Production hosting needs HTTPS, authentication and per-user authorization/rate limits. Plain HTTP LAN testing is supported in Expo Go; for a standalone APK use an HTTPS backend URL configured through the app's connection screen.
 
@@ -84,13 +83,7 @@ The backend is a local prototype for a trusted network, without account authenti
 - **Retry viewer** reuses the already generated code with no API call. **Repair scene once** requests one paid repair. No automatic paid retries occur.
 - **Reload viewer** recovers a lost graphics context using the last working scene.
 - If recognition fails, the app explains how to improve the photo and offers **Try another photo** (gallery) and **Take a new photo** (camera). Opening either picker does not generate a scene or spend tokens; the new photo still requires confirmation.
-- Scenes and connection settings currently live in memory; restarting the app starts a fresh session. Theme preference is saved on the device. Backend usage persists independently.
-
-## Spending controls
-
-All paid calls fix `model: claude-sonnet-4-6`, `thinking: {type: adaptive}`, and `output_config: {effort: low}`. Input is counted before generation and limited to 16,000 tokens; output is limited to 6,000 tokens. At the documented $3/M input and $15/M output rates, each request reserves $0.138 before submission. Measured usage replaces the reservation on completion. Unknown outcomes retain the full reservation. The persisted ledger is `.local/usage.json` and the maximum cumulative test allowance is $5 (or a lower `AI_BUDGET_USD`). Do not delete the ledger to bypass the limit. API usage estimates exclude unrelated calls made outside this backend.
-
-Only one backend process may own the ledger. If a process crashes, check that no backend is running before removing its stale `.local/server.lock`. Normal shutdown removes the lock. Authentication errors and explicit upstream request rejections release their reservation; network/timeouts remain conservatively charged. SDK retries are not used.
+- Scenes and connection settings currently live in memory; restarting the app starts a fresh session. Theme preference is saved on the device.
 
 ## Development and verification
 
@@ -125,12 +118,11 @@ Link the project to your own Expo account when prompted. Download the APK from t
 - `App.tsx`, `mobile/`: native photo flow, UI, and tightly constrained viewer bridge.
 - `viewer/`: fixed renderer and restricted ES5 interpreter. Generated source never runs through host `eval` and receives only JSON-based material, part and action operations.
 - `shared/contract.mjs`: schemas and documented generation toolkit.
-- `server/`: validation, Claude transport and durable budget ledger. Secrets and photos are not written to logs.
-- `tests/`: deterministic contract, budget and interpreter regression tests.
+- `server/`: validation and Claude transport. Secrets and photos are not written to logs.
+- `tests/`: deterministic contract, backend and interpreter regression tests.
 
 The viewer uses fixed bundled dependencies, CSP blocking network resources, disabled file access, and navigation restrictions. Browser preview additionally uses an opaque-origin sandboxed iframe. Mobile isolation relies on the interpreter and WebView controls, not an assumption that iframe sandboxing applies to Android. Complexity and interpreter-step limits reduce hangs; severe WebView resource exhaustion can still require reloading its process. Arbitrary callbacks/imports are intentionally outside the toolkit; generated code composes many objects and behaviors through geometry and parameterized animation tracks.
 
-See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and [TEST_RESULTS.md](TEST_RESULTS.md) for checkpoints and the physical-phone acceptance checklist.
 
 ## References
 

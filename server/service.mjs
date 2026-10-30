@@ -1,7 +1,6 @@
-import { MODEL, MAX_OUTPUT, MAX_INPUT } from './budget.mjs';
+import { MODEL, MAX_OUTPUT, MAX_INPUT } from './config.mjs';
 import { SYSTEM, resultSchema } from '../shared/contract.mjs';
-import { createHash } from 'node:crypto';
-export function createService({ key, budget, transport = fetch }) {
+export function createService({ key, transport = fetch }) {
   let busy = false;
   const cache = new Map();
   const repaired = new Set();
@@ -38,8 +37,6 @@ export function createService({ key, budget, transport = fetch }) {
         new Error('This scene already had its one repair attempt. Try a new description.'),
         { status: 409 });
     busy = true;
-    let reservation;
-    const start = Date.now();
     try {
       const content = [];
       if (request.mode === 'generate')
@@ -62,17 +59,12 @@ export function createService({ key, budget, transport = fetch }) {
         throw Object.assign(
           new Error('Request context is too large. Choose a smaller photo or start a new scene.'),
           { status: 400 });
-      reservation = budget.reserve(
-        request.requestId,
-        request.mode,
-        repairKey ? createHash('sha256').update(repairKey).digest('hex') : undefined);
       if (repairKey) repaired.add(repairKey);
       const response = await post('messages', {
         ...base,
         max_tokens: MAX_OUTPUT,
         thinking: { type: 'adaptive' },
         output_config: { effort: 'low' }});
-      budget.settle(reservation, response.usage, Date.now() - start);
       if (response.stop_reason !== 'end_turn')
         throw Object.assign(
           new Error('Scene generation was incomplete. Try a simpler object or request.'),
@@ -95,16 +87,10 @@ export function createService({ key, budget, transport = fetch }) {
           new Error(
             'That change needs more detail. Please describe the desired change more specifically.'),
           { status: 422 });
-      const output = { result, usage: { ...reservation }, budget: budget.summary() };
+      const output = { result };
       cache.set(request.requestId, output);
       if (cache.size > 30) cache.delete(cache.keys().next().value);
       return output;
-    } catch (e) {
-      if (reservation?.status === 'reserved') {
-        if ([400, 401, 403, 404, 413, 429].includes(e.upstreamStatus)) budget.release(reservation);
-        else budget.uncertain(reservation);
-      }
-      throw e;
     } finally {
       busy = false;
     }
