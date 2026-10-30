@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { WebView } from 'react-native-webview';
 import { viewerHtml } from './generated/viewerHtml';
 import { parseMessage, ViewerProps } from './types';
-export default function SceneViewer({ scene, sceneId, onMessage, command }: ViewerProps) {
+export default function SceneViewer({ dark, scene, sceneId, onMessage, command }: ViewerProps) {
   const ref = useRef<WebView<{}>>(null);
   const [ready, setReady] = useState(false);
   const send = (value: unknown) =>
@@ -14,6 +14,9 @@ export default function SceneViewer({ scene, sceneId, onMessage, command }: View
   useEffect(() => {
     if (ready && command) send(command);
   }, [ready, command]);
+  useEffect(() => {
+    if (ready) send({ type: 'theme', dark });
+  }, [ready, dark]);
   return <WebView<{}>
       ref={ref}
       source={{ html: viewerHtml, baseUrl: 'about:blank' }}

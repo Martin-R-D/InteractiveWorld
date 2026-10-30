@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { viewerHtml } from './generated/viewerHtml';
 import { parseMessage, ViewerProps } from './types';
-export default function SceneViewer({ scene, sceneId, onMessage, command }: ViewerProps) {
+export default function SceneViewer({ dark, scene, sceneId, onMessage, command }: ViewerProps) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const callback = useRef(onMessage);
@@ -38,6 +38,10 @@ export default function SceneViewer({ scene, sceneId, onMessage, command }: View
   useEffect(() => {
     if (ready && command) ref.current?.contentWindow?.postMessage(JSON.stringify(command), '*');
   }, [ready, command]);
+  useEffect(() => {
+    if (ready)
+      ref.current?.contentWindow?.postMessage(JSON.stringify({ type: 'theme', dark }), '*');
+  }, [ready, dark]);
   return <iframe
       title="InteractiveWorld 3D viewer"
       ref={ref}

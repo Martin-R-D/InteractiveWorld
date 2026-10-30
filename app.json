@@ -4,7 +4,7 @@
     "slug": "interactiveworld",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "android": { "package": "com.interactiveworld.app", "permissions": ["CAMERA"] },
     "plugins": [
       [

@@ -18,7 +18,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as Crypto from 'expo-crypto';
 import SceneViewer from './mobile/SceneViewer';
 import { Scene, ViewerMessage } from './mobile/types';
-import { s } from './mobile/styles';
+import { ThemeProvider, useTheme } from './mobile/theme';
 
 type Photo = { uri: string; data: string; mediaType: 'image/jpeg' };
 type Usage = { spent: number; limit: number; remaining: number; requests: number };
@@ -32,6 +32,7 @@ function Button({
   onPress: () => void;
   disabled?: boolean;
   secondary?: boolean}) {
+  const { s, dark } = useTheme();
   return <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -43,15 +44,20 @@ function Button({
         disabled && { opacity:.4 },
         pressed && { opacity:.75 }]}
     >
-      <Text style={[s.buttonText, secondary && { color: '#e6eee5' }]}>{label}</Text>
+      <Text style={[s.buttonText, secondary && { color: dark ? '#e6eee5' : '#35513e' }]}>
+        {label}
+      </Text>
     </Pressable>;
 }
 export default function App() {
   return <SafeAreaProvider>
-      <Main />
+      <ThemeProvider>
+        <Main />
+      </ThemeProvider>
     </SafeAreaProvider>;
 }
 function Main() {
+  const { s, dark, toggle } = useTheme();
   const [url, setUrl] = useState(`http://${host}:3001`),
     [settings, setSettings] = useState(false),
     [connection, setConnection] = useState('Checking connection…');
@@ -258,7 +264,7 @@ function Main() {
     }, 15000);
   }
   return <SafeAreaView style={s.safe}>
-      <StatusBar style="light" />
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -275,14 +281,24 @@ function Main() {
               </View>
               <Text style={s.brand}>InteractiveWorld</Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Connection settings"
-              onPress={() => setSettings(!settings)}
-              style={s.settings}
-            >
-              <Text style={s.settingsText}>•••</Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+                onPress={toggle}
+                style={s.settings}
+              >
+                <Text style={s.settingsText}>{dark ? '☀ Light' : '☾ Dark'}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Connection settings"
+                onPress={() => setSettings(!settings)}
+                style={s.settings}
+              >
+                <Text style={s.settingsText}>•••</Text>
+              </Pressable>
+            </View>
           </View>
           <View style={s.statusRow}>
             <View
@@ -309,7 +325,7 @@ function Main() {
             </View>}
           {!viewing &&<View style={s.hero}>
               <Text style={s.eyebrow}>EVERYDAY OBJECTS. EXTRAORDINARY POSSIBILITIES.</Text>
-              <Text style={s.title}>Your world,{'\n'}a little more <Text style={{ color: '#b7ee8a' }}>alive.</Text>
+              <Text style={s.title}>Your world,{'\n'}a little more <Text style={{ color: dark ? '#b7ee8a' : '#4d7a35' }}>alive.</Text>
               </Text>
               <Text style={s.subtitle}>A photo becomes a playful 3D creation.{'\n'}Touch it. Change it. See what happens.</Text>
             </View>}
@@ -327,6 +343,7 @@ function Main() {
               >
                 <SceneViewer
                   key={viewerKey}
+                  dark={dark}
                   scene={candidate?.scene ?? current}
                   sceneId={candidate?.id ?? workingId.current}
                   onMessage={viewerMessage}

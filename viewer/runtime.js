@@ -219,6 +219,13 @@ function receive(raw) {
       }
     } else if (m.type === 'action' && typeof m.id === 'string') action(m.id);
     else if (m.type === 'reset') resetView();
+    else if (m.type === 'theme' && typeof m.dark === 'boolean') {
+      const bg = m.dark ? '#152225' : '#edf3e9';
+      world.background.set(bg);
+      world.fog.color.set(bg);
+      world.getObjectByName('studioFloor').material.color.set(m.dark ? '#1d3030' : '#dde8d4');
+      document.body.style.background = bg;
+    }
   } catch {
     /* Invalid bridge input has no effect. */
   }
@@ -257,6 +264,7 @@ try {
   const floor = new THREE.Mesh(
     new THREE.CircleGeometry(30, 64),
     new THREE.MeshStandardMaterial({ color: '#1d3030', roughness:.95 }));
+  floor.name = 'studioFloor';
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = -.03;
   floor.receiveShadow = true;

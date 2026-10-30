@@ -9,6 +9,7 @@ export type ViewerMessage = {
   id?: string;
   message?: string};
 export type ViewerProps = {
+  dark: boolean;
   scene: Scene | null;
   sceneId: string;
   onMessage: (message: ViewerMessage) => void;
