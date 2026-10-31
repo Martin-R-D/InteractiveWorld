@@ -1,3 +1,4 @@
+import { createObjects } from './objects.mjs';
 import { openDatabase } from './db/index.mjs';
 import { createAuth } from './auth.mjs';
 import express from 'express';
@@ -26,6 +27,7 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: '2mb' }));
 app.use('/auth', auth.router);
+app.use('/objects', createObjects(db, auth.guard));
 app.get('/health', (_, res) =>
   res.json({
     name: 'InteractiveWorld',

@@ -1,3 +1,4 @@
+import MyObjects from './mobile/MyObjects';
 import AccountPage from './mobile/AccountPage';
 import { restoreSession, AccountSession } from './mobile/Account';
 import React, { useEffect, useRef, useState } from 'react';
@@ -63,6 +64,8 @@ function Main() {
   const [url, setUrl] = useState(`http://${host}:3001`),
     [settings, setSettings] = useState(false),
     [connection, setConnection] = useState('Checking connection…');
+  const [libraryOpen, setLibraryOpen] = useState(false),
+    [saveMessage, setSaveMessage] = useState('');
   const [restoring, setRestoring] = useState(true);
   const [accountOpen, setAccountOpen] = useState(false),
     [account, setAccount] = useState<AccountSession | null>(null);
@@ -321,6 +324,7 @@ function Main() {
     if (m.type === 'loaded' && pending.current && m.id === pending.current.id) {
       workingId.current = m.id;
       setCurrent(pending.current.scene);
+      setSaveMessage('');
       setHome(false);
       pending.current = null;
       setCandidate(null);
@@ -363,7 +367,53 @@ function Main() {
       unlock();
     }, 15000);
   }
+  async function saveCurrent() {
+    if (!current || !account || locked.current || exportRequest.current) return;
+    locked.current = true;
+    setPhase('Saving your object…');
+    setSaveMessage('');
+    try {
+      const response = await fetch(endpoint + '/objects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + account.token },
+        body: JSON.stringify({ scene: current }),
+        signal: AbortSignal.timeout(15000)});
+      if (response.status === 401) {
+        changeAccount(null);
+        return;
+      }
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? 'Could not save this object.');
+      setSaveMessage('Saved to My objects.');
+    } catch {
+      setSaveMessage('Could not save this object. Tap Save to try again.');
+    } finally {
+      unlock();
+    }
+  }
+  function openSaved(scene: Scene) {
+    const next = { scene, id: Crypto.randomUUID() };
+    setLibraryOpen(false);
+    setCommand(null);
+    setError('');
+    setSaveMessage('');
+    pending.current = next;
+    setCandidate(next);
+    locked.current = true;
+    setPhase('Opening your saved object…');
+    timer.current = setTimeout(() => {
+      if (pending.current?.id === next.id) {
+        pending.current = null;
+        setCandidate(null);
+        setFailed(scene);
+        setError('Could not open this saved object. Try again.');
+        unlock();
+      }
+    }, 15000);
+  }
   function changeAccount(next: AccountSession | null) {
+    setLibraryOpen(false);
+    setSaveMessage('');
     if (account && account.user.id !== next?.user.id) {
       setCurrent(null);
       setCandidate(null);
@@ -385,6 +435,14 @@ function Main() {
         onChange={changeAccount}
         onBack={account ? () => setAccountOpen(false) : undefined}
         onEndpoint={setUrl}
+      />;
+  if (libraryOpen)
+    return <MyObjects
+        key={account.user.id}
+        account={account}
+        onBack={() => setLibraryOpen(false)}
+        onOpen={openSaved}
+        onExpired={() => changeAccount(null)}
       />;
   return <SafeAreaView style={s.safe}>
       <StatusBar style={dark ? 'light' : 'dark'} />
@@ -424,6 +482,16 @@ function Main() {
               </Pressable>
             </View>
           </View>
+          <Button
+            label="My objects"
+            onPress={() => {
+              setCommand(null);
+              setViewerTouch(false);
+              setLibraryOpen(true);
+            }}
+            disabled={busy || exporting}
+            secondary
+          />
           <Button
             label={account ? 'My account' : 'Sign in / Create account'}
             onPress={() => {
@@ -620,6 +688,14 @@ function Main() {
             </View>}
           {viewing && current &&<>
               <View style={s.card}>
+                <Button
+                  label="Save"
+                  onPress={() => void saveCurrent()}
+                  disabled={busy || exporting}
+                />
+                {!!saveMessage &&<Text accessibilityLiveRegion="polite" style={s.muted}>
+                    {saveMessage}
+                  </Text>}
                 <Button
                   label={exporting ? 'Exporting model...' : 'Export 3D model'}
                   onPress={exportCurrent}

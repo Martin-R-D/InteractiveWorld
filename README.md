@@ -88,7 +88,7 @@ The backend is a local prototype for a trusted network with account authenticati
 - **Retry viewer** reuses the already generated code with no API call. **Repair scene once** requests one paid repair. No automatic paid retries occur.
 - **Reload viewer** recovers a lost graphics context using the last working scene.
 - If recognition fails, the app explains how to improve the photo and offers **Try another photo** (gallery) and **Take a new photo** (camera). Opening either picker does not generate a scene or spend tokens; the new photo still requires confirmation.
-- Scenes and connection settings currently live in memory; restarting the app starts a fresh session. Theme preference is saved on the device.
+- Scenes and connection settings currently live in memory; restarting the app starts a fresh scene session. Saved objects can be reopened from My objects. Theme preference is saved on the device.
 
 ## Export your model
 
@@ -171,4 +171,10 @@ The backend uses Drizzle ORM and SQLite through Node 24's built-in SQLite driver
 
 Passwords use salted scrypt. Sessions expire after 30 days and are revoked on sign-out. Native tokens use Expo SecureStore; browser tokens use sessionStorage and survive reloads in the same tab. Changing backend addresses does not send the existing token to the new address. Auth endpoints are rate-limited. Use HTTPS before using real credentials over an untrusted network; local HTTP is for development on a trusted network.
 
-Future tables can reference `users.id`; no model storage is included. PostgreSQL migration will require a PostgreSQL Drizzle schema/driver and a data transfer retaining UUIDs, followed by running equivalent migrations. The mobile account API does not need to change. SQLite is intended for this single-backend setup; move to PostgreSQL before running multiple backend instances. The in-memory rate limiter must also move to a shared store at that point.
+Future tables can reference `users.id`; saved objects reference their owning user. PostgreSQL migration will require a PostgreSQL Drizzle schema/driver and a data transfer retaining UUIDs, followed by running equivalent migrations. The mobile account API does not need to change. SQLite is intended for this single-backend setup; move to PostgreSQL before running multiple backend instances. The in-memory rate limiter must also move to a shared store at that point.
+
+## Saved objects
+
+Tap **Save** after an object has loaded successfully. **My objects** lists your account's saved creations, with descriptions and dates. Opening an entry rebuilds its interactive model locally without an AI call. The saved snapshot includes the analysis/description, scene code, actions and sound selections, but not the original photo or the current animation pose. Identical saves are deduplicated per account; edited versions are separate entries.
+
+The `saved_objects` table stores a UUID, owner UUID, name, description, version snapshot JSON, content hash and creation timestamp. Owner/date indexes support paginated browsing; owner/hash uniqueness prevents duplicate saves. Account deletion also removes saved objects. Migration 002 runs automatically on startup while retaining existing accounts. Saved objects are stored in your backend database, so use the same backend across devices and back up its database.

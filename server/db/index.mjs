@@ -7,11 +7,16 @@ export function openDatabase(filename = process.env.DATABASE_PATH ?? '.local/int
   const sqlite = new DatabaseSync(filename);
   sqlite.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
   sqlite.exec('CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY)');
-  if (!sqlite.prepare('SELECT version FROM schema_migrations WHERE version=1').get()) {
+  for (const [version, file] of [
+    [1, '001_accounts.sql'],
+    [2, '002_saved_objects.sql']]) {
+    if (sqlite.prepare('SELECT version FROM schema_migrations WHERE version=?').get(version))
+      continue;
     sqlite.exec('BEGIN');
     try {
-      sqlite.exec(readFileSync(new URL('./migrations/001_accounts.sql', import.meta.url), 'utf8'));
-      sqlite.exec('INSERT INTO schema_migrations VALUES(1); COMMIT');
+      sqlite.exec(readFileSync(new URL('./migrations/' + file, import.meta.url), 'utf8'));
+      sqlite.prepare('INSERT INTO schema_migrations VALUES(?)').run(version);
+      sqlite.exec('COMMIT');
     } catch (e) {
       sqlite.exec('ROLLBACK');
       throw e;
