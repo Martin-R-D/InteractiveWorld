@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { createSoundPlayer } from "./sounds.mjs";
 import { makeScene, dispose } from "./model.mjs";
+import { makeWorld, resetWorld, sampleWorld } from "./world.mjs";
 
 const send = (type, payload = {}) => {
   const message = JSON.stringify({ type, ...payload });
@@ -21,6 +22,33 @@ let renderer,
   dirty = true;
 const soundPlayer = createSoundPlayer();
 const raycaster = new THREE.Raycaster();
+let playback = null;
+let selection = null;
+function clearSelection() {
+  if (!selection) return;
+  world.remove(selection);
+  selection.geometry.dispose();
+  selection.material.dispose();
+  selection = null;
+}
+function selectMember(id) {
+  clearSelection();
+  const member = current?.members?.get(id);
+  if (!member) return;
+  selection = new THREE.BoxHelper(member.container, "#80b54c");
+  world.add(selection);
+  dirty = true;
+  send("selected", { id });
+}
+function stopWorld() {
+  playback = null;
+  soundPlayer.stop();
+  if (current?.members) resetWorld(current);
+  dirty = true;
+  send("stopped", { id: currentId });
+}
+const buildScene = (data) =>
+  data.kind === "world" ? makeWorld(data) : makeScene(data);
 function resetView() {
   if (!current) return;
   const center = current.box.getCenter(new THREE.Vector3());
@@ -54,6 +82,10 @@ function action(id) {
   });
   for (const c of a.colors) {
     const m = current.materials.get(c.material);
+    if (!m.userData.worldOriginalColor) {
+      m.userData.worldOriginalColor = m.color.clone();
+      m.userData.worldOriginalEmissive = m.emissive.clone();
+    }
     m.color.set(on ? c.color : c.alternate);
     if (m.emissiveIntensity > 0) m.emissive.set(on ? c.color : c.alternate);
   }
@@ -61,13 +93,13 @@ function action(id) {
 }
 function receive(raw) {
   try {
-    if (typeof raw !== "string" || raw.length > 40000) return;
+    if (typeof raw !== "string" || raw.length > 180000) return;
     const m = JSON.parse(raw);
     dirty = true;
     if (m.type === "load" && typeof m.id === "string") {
       let next;
       try {
-        next = makeScene(m.scene);
+        next = buildScene(m.scene);
         // Compile and render offscreen before replacing the last good scene.
         const previous = current;
         if (previous) world.remove(previous.root);
@@ -81,6 +113,8 @@ function receive(raw) {
           throw e;
         }
         soundPlayer.stop();
+        playback = null;
+        clearSelection();
         current = next;
         currentId = m.id;
         currentData = m.scene;
@@ -100,7 +134,7 @@ function receive(raw) {
       exporting = true;
       let snapshot;
       try {
-        snapshot = makeScene(currentData);
+        snapshot = buildScene(currentData);
         exportModel(snapshot.root)
           .then((data) => send("exported", { id: m.id, data }))
           .catch(() =>
@@ -121,7 +155,36 @@ function receive(raw) {
           message: "Could not prepare the model for export.",
         });
       }
-    } else if (m.type === "action" && typeof m.id === "string") action(m.id);
+    } else if (m.type === "world-play" && current?.plan) {
+      stopWorld();
+      clearSelection();
+      // Frame the entire path, including elevated and distant destinations.
+      const bounds = current.box.clone();
+      for (const step of current.plan.steps) {
+        if (!step.position) continue;
+        const size = current.members.get(step.memberId).size;
+        const p = new THREE.Vector3(...step.position);
+        bounds.expandByPoint(
+          p.clone().add(new THREE.Vector3(-size[0], 0, -size[2])),
+        );
+        bounds.expandByPoint(
+          p.clone().add(new THREE.Vector3(size[0], size[1], size[2])),
+        );
+      }
+      const original = current.box;
+      current.box = bounds;
+      resetView();
+      current.box = original;
+      playback = {
+        start: performance.now() / 1000,
+        fired: new Set(),
+        ended: new Set(),
+      };
+      send("playing", { id: currentId });
+    } else if (m.type === "world-stop") stopWorld();
+    else if (m.type === "select" && !playback) selectMember(m.id);
+    else if (m.type === "action" && typeof m.id === "string" && !playback)
+      action(m.id);
     else if (m.type === "mute" && typeof m.muted === "boolean")
       soundPlayer.mute(m.muted);
     else if (m.type === "reset") resetView();
@@ -225,6 +288,17 @@ try {
     );
     const hit = raycaster.intersectObject(current.root, true)[0];
     let o = hit?.object;
+    if (current.members) {
+      if (playback) return;
+      while (o) {
+        if (o.userData.memberId) {
+          selectMember(o.userData.memberId);
+          break;
+        }
+        o = o.parent;
+      }
+      return;
+    }
     while (o) {
       if (o.userData.action) {
         action(o.userData.action);
@@ -238,6 +312,36 @@ try {
     if (document.hidden) return;
     resize();
     const now = performance.now() / 1000;
+    if (playback && current?.plan) {
+      const elapsed = now - playback.start;
+      sampleWorld(current, elapsed);
+      dirty = true;
+      current.plan.steps.forEach((step, index) => {
+        if (elapsed >= step.at && !playback.fired.has(index)) {
+          playback.fired.add(index);
+          if (step.actionId) action(step.memberId + ":" + step.actionId);
+        }
+        if (elapsed >= step.at + step.duration && !playback.ended.has(index)) {
+          playback.ended.add(index);
+          const id = step.memberId + ":" + step.actionId;
+          const local = current.actions.get(id);
+          if (local) {
+            for (const track of local.tracks)
+              track.target[track.prop] = track.base;
+            current.active.delete(id);
+          }
+        }
+      });
+      if (
+        elapsed >= Math.max(...current.plan.steps.map((s) => s.at + s.duration))
+      ) {
+        resetWorld(current);
+        sampleWorld(current, elapsed);
+        playback = null;
+        soundPlayer.stop();
+        send("finished", { id: currentId });
+      }
+    }
     if (current)
       for (const a of current.active.values())
         for (const t of a.tracks) {
@@ -267,14 +371,17 @@ try {
         ),
       );
     if (dirty || moving) {
+      selection?.update();
       renderer.render(world, camera);
       dirty = false;
     }
   }
   frame();
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) soundPlayer.stop();
-    else dirty = true;
+    if (document.hidden) {
+      soundPlayer.stop();
+      if (playback) stopWorld();
+    } else dirty = true;
   });
   window.addEventListener("pagehide", () => soundPlayer.stop());
   window.InteractiveWorldReceive = receive;
