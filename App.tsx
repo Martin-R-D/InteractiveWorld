@@ -61,6 +61,8 @@ function Main() {
   const [url, setUrl] = useState(`http://${host}:3001`),
     [settings, setSettings] = useState(false),
     [connection, setConnection] = useState('Checking connection…');
+  const [home, setHome] = useState(true);
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [photo, setPhoto] = useState<Photo | null>(null),
     [target, setTarget] = useState(''),
     [prompt, setPrompt] = useState('');
@@ -88,7 +90,7 @@ function Main() {
     pending = useRef<typeof candidate>(null),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const busy = !!phase;
-  const viewing = !!(current || candidate);
+  const viewing = !!candidate || (!home && !!current);
   const endpoint = url.trim().replace(/\/$/, '');
   async function check() {
     try {
@@ -235,6 +237,20 @@ function Main() {
     setExporting(false);
     setExportMessage(message);
   }
+  function navigateHome(showHome: boolean) {
+    if (locked.current || exportRequest.current) return;
+    setHome(showHome);
+    setPhoto(null);
+    setClarification(null);
+    setTarget('');
+    setError('');
+    setFailed(null);
+    setRepaired(false);
+    setExportMessage('');
+    setCommand(null);
+    setViewerTouch(false);
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }
   function exportCurrent() {
     if (!current || busy || exportRequest.current) return;
     const id = Crypto.randomUUID();
@@ -272,6 +288,7 @@ function Main() {
     if (m.type === 'loaded' && pending.current && m.id === pending.current.id) {
       workingId.current = m.id;
       setCurrent(pending.current.scene);
+      setHome(false);
       pending.current = null;
       setCandidate(null);
       setFailed(null);
@@ -320,6 +337,7 @@ function Main() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          ref={scroll}
           contentContainerStyle={s.page}
           keyboardShouldPersistTaps="handled"
           scrollEnabled={!viewerTouch}
@@ -366,6 +384,22 @@ function Main() {
               />
               <Button label="Test connection" onPress={() => void check()} secondary />
               <Text style={s.small}>API credentials stay on the backend.</Text>
+            </View>}
+          {viewing &&<Button
+              label="Back to home"
+              onPress={() => navigateHome(true)}
+              disabled={busy || exporting}
+              secondary
+            />}
+          {!viewing && current &&<View style={s.card}>
+              <Text style={s.cardTitle}>{current.name}</Text>
+              <Text style={s.muted}>Your current model is still here for this session.</Text>
+              <Button
+                label="Return to current model"
+                onPress={() => navigateHome(false)}
+                disabled={busy || exporting}
+                secondary
+              />
             </View>}
           {!viewing &&<View style={s.hero}>
               <Text style={s.eyebrow}>EVERYDAY OBJECTS. EXTRAORDINARY POSSIBILITIES.</Text>
@@ -416,11 +450,7 @@ function Main() {
               <Text style={s.cardTitle}>What will you bring to life?</Text>
               <Text style={[s.muted, { textAlign: 'center' }]}>Start with one object and a clear photo.{'\n'}A lamp, a sneaker, your favorite mug…</Text>
               <View style={s.full}>
-                <Button
-                  label="◎  Take a photo"
-                  onPress={() => void choose(true)}
-                  disabled={busy}
-                />
+                <Button label="◎  Take a photo" onPress={() => void choose(true)} disabled={busy} />
                 <Button
                   label="↗  Choose from gallery"
                   onPress={() => void choose(false)}
@@ -518,15 +548,15 @@ function Main() {
                   secondary
                 />}
             </View>}
-          {current &&<>
+          {viewing && current &&<>
               <View style={s.card}>
                 <Button
-                  label={exporting ? 'Exporting model�' : 'Export 3D model'}
+                  label={exporting ? 'Exporting model...' : 'Export 3D model'}
                   onPress={exportCurrent}
                   disabled={busy || exporting}
                   secondary
                 />
-                <Text style={s.small}>GLB file � static model � no sounds or animations</Text>
+                <Text style={s.small}>GLB file · static model · no sounds or animations</Text>
                 {!!exportMessage &&<Text accessibilityLiveRegion="polite" style={s.muted}>
                     {exportMessage}
                   </Text>}

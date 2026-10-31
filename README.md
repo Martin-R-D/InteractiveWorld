@@ -78,6 +78,8 @@ The backend is a local prototype for a trusted network, without account authenti
 
 ## Controls and recovery
 
+- **Back to home** returns to photo selection without discarding the current model. **Return to current model** opens it again without an AI request. This keeps one model for the current session; restarting the app still clears it. A successful new scan replaces it.
+
 - Drag to rotate; pinch to zoom; tap **Reset view** to restore framing.
 - Tap a part or action button to activate a generated behavior; tap again to toggle/reset it.
 - Claude may attach a short local sound to an action when it suits the object, such as a retractable pen click. Silent actions stay silent. Use **Sound on / Sound off** in the viewer to mute. In browsers, tap the 3D viewer first to enable audio. Effects are synthesized approximations, not recordings of the photographed object. Existing scenes remain compatible; generate a new scene or request an edit to add sound.
