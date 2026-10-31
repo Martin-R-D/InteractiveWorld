@@ -1,67 +1,86 @@
-import { createObjects } from './objects.mjs';
-import { openDatabase } from './db/index.mjs';
-import { createAuth } from './auth.mjs';
-import express from 'express';
-import { createService } from './service.mjs';
-import { requestSchema } from '../shared/contract.mjs';
-import { networkInterfaces } from 'node:os';
+import { createObjects } from "./objects.mjs";
+import { createWorlds } from "./worlds.mjs";
+import { createWorldService } from "./world-service.mjs";
+import { openDatabase } from "./db/index.mjs";
+import { createAuth } from "./auth.mjs";
+import express from "express";
+import { createService } from "./service.mjs";
+import { requestSchema } from "../shared/contract.mjs";
+import { networkInterfaces } from "node:os";
 
 const generate = createService({ key: process.env.CLAUDE_API });
 const app = express();
 const { db } = openDatabase();
 const auth = createAuth(db);
-app.disable('x-powered-by');
+app.disable("x-powered-by");
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (
     origin &&
-    !/^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):\d+$/.test(origin)
+    !/^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):\d+$/.test(
+      origin,
+    )
   )
-    return res.status(403).json({ error: 'Origin is not allowed' });
-  if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Vary', 'Origin');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
+    return res.status(403).json({ error: "Origin is not allowed" });
+  if (origin) res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
-app.use(express.json({ limit: '2mb' }));
-app.use('/auth', auth.router);
-app.use('/objects', createObjects(db, auth.guard));
-app.get('/health', (_, res) =>
+app.use(express.json({ limit: "2mb" }));
+app.use("/auth", auth.router);
+app.use("/objects", createObjects(db, auth.guard));
+app.use(
+  "/worlds",
+  createWorlds(
+    db,
+    auth.guard,
+    createWorldService({ key: process.env.CLAUDE_API }),
+  ),
+);
+app.get("/health", (_, res) =>
   res.json({
-    name: 'InteractiveWorld',
+    name: "InteractiveWorld",
     ready: !!process.env.CLAUDE_API,
-    model: 'claude-sonnet-4-6',
-    effort: 'low'}));
-app.post('/scene', auth.guard, async (req, res, next) => {
+    model: "claude-sonnet-4-6",
+    effort: "low",
+  }),
+);
+app.post("/scene", auth.guard, async (req, res, next) => {
   try {
     const parsed = requestSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: 'Invalid request. Check the image, scene and prompt.' });
+      return res
+        .status(400)
+        .json({ error: "Invalid request. Check the image, scene and prompt." });
     res.json(
-      await generate({ ...parsed.data, requestId: req.account.id + ':' + parsed.data.requestId }));
+      await generate({
+        ...parsed.data,
+        requestId: req.account.id + ":" + parsed.data.requestId,
+      }),
+    );
   } catch (e) {
     next(e);
   }
 });
 app.use((err, req, res, next) => {
   const status = err.status ?? 500;
-  res
-    .status(status)
-    .json({
-      error:
-        status === 413
-          ? 'Photo is too large. Choose a smaller image.'
-          : status === 500
-            ? 'Scene request failed. Your previous scene is safe.'
-            : err.message});
+  res.status(status).json({
+    error:
+      status === 413
+        ? "Photo is too large. Choose a smaller image."
+        : status === 500
+          ? "Scene request failed. Your previous scene is safe."
+          : err.message,
+  });
 });
 const port = Number(process.env.PORT ?? 3001);
-app.listen(port, '0.0.0.0', () => {
+app.listen(port, "0.0.0.0", () => {
   console.log(`InteractiveWorld backend ready at http://localhost:${port}`);
   for (const addresses of Object.values(networkInterfaces()))
     for (const a of addresses ?? [])
-      if (a.family === 'IPv4' && !a.internal)
+      if (a.family === "IPv4" && !a.internal)
         console.log(`Phone connection: http://${a.address}:${port}`);
 });
