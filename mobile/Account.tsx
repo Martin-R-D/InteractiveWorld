@@ -15,7 +15,7 @@ export default function Account({
   session: AccountSession | null;
   onChange: (s: AccountSession | null) => void;
   onClose: () => void}) {
-  const { s } = useTheme();
+  const { s, dark } = useTheme();
   const [register, setRegister] = useState(false),
     [name, setName] = useState(''),
     [email, setEmail] = useState(''),
@@ -53,9 +53,22 @@ export default function Account({
       setBusy(false);
     }
   }
-  function button(label: string, action: () => void) {
-    return <Pressable accessibilityRole="button" disabled={busy} onPress={action} style={s.button}>
-        <Text style={s.buttonText}>{label}</Text>
+  function button(label: string, action: () => void, destructive = false) {
+    return <Pressable
+        accessibilityRole="button"
+        disabled={busy}
+        onPress={action}
+        style={({ pressed }) => [
+          s.button,
+          destructive && {
+            backgroundColor: dark ? '#482e32' : '#f9dddd',
+            borderWidth: 1,
+            borderColor: dark ? '#795057' : '#edbcbc'},
+          (pressed || busy) && { opacity:.7 }]}
+      >
+        <Text style={[s.buttonText, destructive && { color: dark ? '#ffc4c4' : '#923b42' }]}>
+          {label}
+        </Text>
       </Pressable>;
   }
   return <View style={s.card}>
@@ -74,14 +87,14 @@ export default function Account({
                 onChangeText={setPassword}
                 style={s.input}
               />
-              {button('Confirm account deletion', () => void submit('delete'))}
+              {button('Confirm account deletion', () => void submit('delete'), true)}
               {button('Cancel deletion', () => {
                 setDeleting(false);
                 setPassword('');
               })}
             </>:<>
-              {button('Sign out', () => void submit('logout'))}
-              {button('Delete account', () => setDeleting(true))}
+              {button('Sign out', () => void submit('logout'), true)}
+              {button('Delete account', () => setDeleting(true), true)}
             </>}
         </>:<>
           {register &&<TextInput
