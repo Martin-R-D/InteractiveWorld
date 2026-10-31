@@ -72,18 +72,12 @@ function Main() {
   const [phase, setPhase] = useState(''),
     [error, setError] = useState(''),
     [clarification, setClarification] = useState<{ question: string; choices: string[] } |null>(null);
- const [exporting,setExporting]=useState(false),[exportMessage,setExportMessage]=useState('');
- const exportRequest=useRef<{id:string;name:string;saving?:boolean;timer:ReturnType<typeof setTimeout>}|null>(null);
- const [muted, setMuted] = useState(false);
-  const [viewerKey, setViewerKey] = useState(0),
-    [command, setCommand] = useState<{
-      type: 'reset' | 'action' | 'export';
-      id?: string;
-      sceneId?: string;
-      serial: number} | null>(null),
-    [note, setNote] = useState(''),
-    [repaired, setRepaired] = useState(false);
-  const [errorTitle, setErrorTitle] = useState('Let’s try that again');
+  const [exporting,setExporting] = useState(false),[exportMessage,setExportMessage] =useState('');
+  const exportRequest= useRef<{id:string;name:string;saving?:boolean;timer:ReturnType<typeof setTimeout>}| null>(null);
+ const [muted,setMuted]=useState(false);
+ const [viewerKey,setViewerKey]=useState(0),[command,setCommand]=useState<{type:'reset'|'action'|'export';id?:string;sceneId?:string;serial:number}|null>(null),[note,setNote]=useState(''),[repaired,setRepaired]=useState(false);
+ const retryRequest=useRef<{mode:'generate'|'edit'|'repair';body:Record<string,unknown>}|null>(null);
+ const [errorTitle, setErrorTitle] = useState('Let’s try that again');
   const [viewerTouch, setViewerTouch] = useState(false);
   const workingId = useRef('working');
   const locked = useRef(false),
@@ -136,6 +130,7 @@ function Main() {
         { compress:.75, format: ImageManipulator.SaveFormat.JPEG, base64: true });
       if (!resized.base64 || resized.base64.length > 1600000)
         throw new Error('That photo is too large. Try another image.');
+      retryRequest.current = null;
       setError('');
       setErrorTitle('Let’s try that again');
       setPhoto({ uri: resized.uri, data: resized.base64, mediaType: 'image/jpeg' });
@@ -152,17 +147,31 @@ function Main() {
     setPhase('');
     if (timer.current) clearTimeout(timer.current);
   }
-  async function generate(mode: 'generate' | 'edit' | 'repair', targetOverride?: string) {
+  async function generate(
+    mode: 'generate' | 'edit' | 'repair',
+    targetOverride?: string,
+    retryBody?: Record<string, unknown>) {
     if (locked.current || exportRequest.current) return;
-    if (mode === 'generate' && !photo) return;
-    if (mode === 'edit' && (!current || !prompt.trim())) return;
+    if (!retryBody && mode === 'generate' && !photo) return;
+    if (!retryBody && mode === 'edit' && (!current || !prompt.trim())) return;
     if (!/^https?:\/\//.test(endpoint)) {
       setError('Enter a backend URL beginning with http:// or https://.');
       setSettings(true);
       return;
     }
     const repairError = error;
-    setErrorTitle('We couldn’t create your scene');
+    retryRequest.current = null;
+    setErrorTitle('Something went wrong');
+    const requestBody = retryBody ?? {
+      mode,
+      ...(mode === 'generate'
+        ? {
+            image: { data: photo!.data, mediaType: photo!.mediaType },
+            target: targetOverride ?? target}
+        : {
+            scene: mode === 'repair' ? failed : current,
+            prompt: mode === 'edit' ? prompt : undefined,
+            error: mode === 'repair' ? repairError.slice(0, 400) : undefined})};
     locked.current = true;
     setPhase(
       mode === 'generate'
@@ -182,17 +191,7 @@ function Main() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(110000),
-        body: JSON.stringify({
-          requestId,
-          mode,
-          ...(mode === 'generate'
-            ? {
-                image: { data: photo!.data, mediaType: photo!.mediaType },
-                target: targetOverride ?? target}
-            : {
-                scene: mode === 'repair' ? failed : current,
-                prompt: mode === 'edit' ? prompt : undefined,
-                error: mode === 'repair' ? repairError.slice(0, 400) : undefined})})});
+        body: JSON.stringify({ ...requestBody, requestId })});
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? 'Scene request failed.');
       if (body.result.kind === 'unrecognized') {
@@ -222,7 +221,10 @@ function Main() {
         }
       }, 15000);
     } catch (e) {
-      const message = e instanceof Error ? e.message : '';
+      if (mode !== 'repair') retryRequest.current = { mode, body: requestBody };
+      const message = (e instanceof Error ? e.message : '').replace(
+        /Claude|Anthropic/gi,
+        'The service');
       setError(
         /fetch|network|abort|timeout/i.test(message)
           ? 'Could not reach the backend. Check your Wi-Fi and connection settings. Your previous scene is safe.'
@@ -239,6 +241,7 @@ function Main() {
   }
   function navigateHome(showHome: boolean) {
     if (locked.current || exportRequest.current) return;
+    retryRequest.current = null;
     setHome(showHome);
     setPhoto(null);
     setClarification(null);
@@ -515,6 +518,14 @@ function Main() {
           {!!error &&<View accessibilityLiveRegion="polite" style={s.error}>
               <Text style={s.errorTitle}>{errorTitle}</Text>
               <Text style={s.errorText}>{error}</Text>
+              {retryRequest.current &&<Button
+                  label="Try again"
+                  onPress={() => {
+                    const request = retryRequest.current;
+                    if (request) void generate(request.mode, undefined, request.body);
+                  }}
+                  disabled={busy || exporting}
+                />}
               <Button
                 label="Try another photo"
                 onPress={() => void choose(false)}
@@ -526,12 +537,7 @@ function Main() {
                 disabled={busy}
                 secondary
               />
-              {failed &&<Button
-                  label="Retry viewer · no API call"
-                  onPress={retryViewer}
-                  disabled={busy}
-                  secondary
-                />}
+              {failed &&<Button label="Try again" onPress={retryViewer} disabled={busy} secondary />}
               {failed && !repaired &&<Button
                   label="Repair scene once"
                   onPress={() => void generate('repair')}

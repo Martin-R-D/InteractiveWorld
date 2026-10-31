@@ -145,3 +145,28 @@ test('unrecognizable photos return a retryable outcome without scene code', asyn
   await run(request);
   assert.equal(paidCalls, 1);
 });
+
+test('service failures use neutral messages and permit a new attempt', async () => {
+  for (const status of [429, 500, 503]) {
+    let fail = true;
+    const run = createService({
+      key: 'fake',
+      transport: async url=> {
+        if (url.endsWith('count_tokens'))
+          return { ok: true, json: async () => ({ input_tokens: 100 }) };
+        if (fail) return { ok: false, status };
+        return {
+          ok: true,
+          json: async () => ({
+            stop_reason: 'end_turn',
+            content: [{ type: 'text', text: JSON.stringify(scene) }]})};
+      }});
+    await assert.rejects(run(request),error=> {
+      assert.doesNotMatch(error.message, /claude|anthropic/i);
+      assert.match(error.message, /service|request/i);
+      return true;
+    });
+    fail = false;
+    assert.equal((await run({ ...request, requestId: 'retry' })).result.name, 'Cup');
+  }
+});

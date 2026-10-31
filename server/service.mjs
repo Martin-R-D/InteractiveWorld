@@ -19,8 +19,8 @@ export function createService({ key, transport = fetch }) {
           response.status === 401
             ? 'The backend API key was rejected.'
             : response.status === 429
-              ? 'Claude is busy or rate limited. Try again shortly.'
-              : `Claude request failed (${response.status}).`),
+              ? 'The service is busy. Please try again shortly.'
+              : `Scene request failed (${response.status}).`),
         { status: 502, upstreamStatus: response.status });
     return response.json();
   }
@@ -30,7 +30,8 @@ export function createService({ key, transport = fetch }) {
       throw Object.assign(new Error('A scene is already being generated. Please wait.'), {
         status: 409});
     if (!key)
-      throw Object.assign(new Error('Set CLAUDE_API in the backend .env file.'), { status: 503 });
+      throw Object.assign(new Error('The service is not configured. Check the backend settings.'), {
+        status: 503});
     const repairKey = request.mode === 'repair' ? request.scene.code : null;
     if (repairKey && repaired.has(repairKey))
       throw Object.assign(
@@ -79,7 +80,7 @@ export function createService({ key, transport = fetch }) {
           JSON.parse(text.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '')));
       } catch {
         throw Object.assign(
-          new Error('Claude returned an invalid scene response. Your previous scene is safe.'),
+          new Error('An invalid scene response was received. Your previous scene is safe.'),
           { status: 502 });
       }
       if (request.mode !== 'generate' && result.kind !== 'scene')

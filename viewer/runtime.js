@@ -33,7 +33,8 @@ let renderer,
   candidate,
   currentId,
   currentData,
-  exporting = false;
+  exporting = false,
+  dirty = true;
 const soundPlayer = createSoundPlayer();
 const raycaster = new THREE.Raycaster();
 const dispose = s => {
@@ -74,20 +75,20 @@ function makeScene(data) {
           geometry = new THREE.BoxGeometry(...a);
           break;
         case 'sphere':
-          geometry = new THREE.SphereGeometry(a[0], 24, 16);
+          geometry = new THREE.SphereGeometry(a[0], 16, 12);
           break;
         case 'cylinder':
-          geometry = new THREE.CylinderGeometry(a[0], a[1], a[2], 32, 1, s.openEnded === true);
+          geometry = new THREE.CylinderGeometry(a[0], a[1], a[2], 20, 1, s.openEnded === true);
           break;
         case 'cone':
-          geometry = new THREE.ConeGeometry(a[1], a[2], 24);
+          geometry = new THREE.ConeGeometry(a[1], a[2], 20);
           break;
         case 'torus':
           geometry = new THREE.TorusGeometry(
             a[0],
             a[1],
-            12,
-            40,
+            8,
+            24,
             finite(s.arc, Math.PI * 2, Math.PI * 2));
           break;
         default:
@@ -181,6 +182,7 @@ function resetView() {
   controls.update();
 }
 function action(id) {
+  dirty = true;
   const a = current?.actions.get(id);
   if (!a) return;
   soundPlayer.play(a.sound);
@@ -205,6 +207,7 @@ function receive(raw) {
   try {
     if (typeof raw !== 'string' || raw.length > 40000) return;
     const m = JSON.parse(raw);
+    dirty = true;
     if (m.type === 'load' && typeof m.id === 'string') {
       let next;
       try {
@@ -274,7 +277,7 @@ try {
     antialias: true,
     alpha: false,
     powerPreference: 'low-power'});
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -286,6 +289,9 @@ try {
   camera = new THREE.PerspectiveCamera(40, 1,.05, 100);
   camera.position.set(5, 4, 7);
   controls = new OrbitControls(camera, renderer.domElement);
+  controls.addEventListener('change', () => {
+    dirty = true;
+  });
   controls.enableDamping = true;
   controls.enablePan = false;
   controls.target.set(0, 1.5, 0);
@@ -293,7 +299,7 @@ try {
   const light = new THREE.DirectionalLight('#fff0d4', 4);
   light.position.set(4, 7, 5);
   light.castShadow = true;
-  light.shadow.mapSize.set(1024, 1024);
+  light.shadow.mapSize.set(512, 512);
   Object.assign(light.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8 });
   light.shadow.bias = -.001;
   world.add(light);
@@ -316,6 +322,7 @@ try {
     if (w === width && h === height) return;
     width = w;
     height = h;
+    dirty = true;
     renderer.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
@@ -351,6 +358,7 @@ try {
   });
   function frame() {
     requestAnimationFrame(frame);
+    if (document.hidden) return;
     resize();
     const now = performance.now() / 1000;
     if (current)
@@ -366,14 +374,23 @@ try {
               t.mode === 'sine'
                 ? Math.sin(elapsed / t.seconds* Math.PI * 2) * t.value
                 : elapsed * t.value;
+          if (t.target[t.prop] !== v) dirty = true;
           t.target[t.prop] = v;
         }
     controls.update();
-    renderer.render(world, camera);
+    const moving =
+      current &&
+      Array.from(current.active.values()).some(a=>
+        a.tracks.some(t=>t.mode === 'toggle' ? now - a.start < t.seconds : a.on));
+    if (dirty || moving) {
+      renderer.render(world, camera);
+      dirty = false;
+    }
   }
   frame();
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) soundPlayer.stop();
+    else dirty = true;
   });
   window.addEventListener('pagehide', () => soundPlayer.stop());
   window.InteractiveWorldReceive = receive;
