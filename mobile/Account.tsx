@@ -14,7 +14,7 @@ export default function Account({
   endpoint: string;
   session: AccountSession | null;
   onChange: (s: AccountSession | null) => void;
-  onClose: () => void}) {
+  onClose?: () => void}) {
   const { s, dark } = useTheme();
   const [register, setRegister] = useState(false),
     [name, setName] = useState(''),
@@ -138,7 +138,7 @@ export default function Account({
       {!!error &&<Text accessibilityLiveRegion="polite" style={s.errorText}>
           {error}
         </Text>}
-      {button('Close', onClose)}
+      {onClose && button('Back to app', onClose)}
     </View>;
 }
 export async function restoreSession(endpoint: string): Promise<AccountSession | null> {

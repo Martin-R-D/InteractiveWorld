@@ -1,4 +1,5 @@
-import Account, { restoreSession, AccountSession } from './mobile/Account';
+import AccountPage from './mobile/AccountPage';
+import { restoreSession, AccountSession } from './mobile/Account';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -62,6 +63,7 @@ function Main() {
   const [url, setUrl] = useState(`http://${host}:3001`),
     [settings, setSettings] = useState(false),
     [connection, setConnection] = useState('Checking connection…');
+  const [restoring, setRestoring] = useState(true);
   const [accountOpen, setAccountOpen] = useState(false),
     [account, setAccount] = useState<AccountSession | null>(null);
   const [home, setHome] = useState(true);
@@ -104,12 +106,16 @@ function Main() {
   }, []);
   useEffect(() => {
     let active = true;
+    setRestoring(true);
     setAccount(null);
     restoreSession(endpoint)
       .then(value=> {
         if (active) setAccount(value);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (active) setRestoring(false);
+      });
     return () => {
       active = false;
     };
@@ -357,6 +363,29 @@ function Main() {
       unlock();
     }, 15000);
   }
+  function changeAccount(next: AccountSession | null) {
+    if (account && account.user.id !== next?.user.id) {
+      setCurrent(null);
+      setCandidate(null);
+      setPhoto(null);
+      setFailed(null);
+      setPrompt('');
+      setHome(true);
+      retryRequest.current = null;
+    }
+    setAccount(next);
+    setAccountOpen(false);
+  }
+  if (restoring || !account || account.endpoint !== endpoint || accountOpen)
+    return <AccountPage
+        key={endpoint}
+        endpoint={endpoint}
+        session={account?.endpoint === endpoint ? account : null}
+        restoring={restoring}
+        onChange={changeAccount}
+        onBack={account ? () => setAccountOpen(false) : undefined}
+        onEndpoint={setUrl}
+      />;
   return <SafeAreaView style={s.safe}>
       <StatusBar style={dark ? 'light' : 'dark'} />
       <KeyboardAvoidingView
@@ -397,28 +426,15 @@ function Main() {
           </View>
           <Button
             label={account ? 'My account' : 'Sign in / Create account'}
-            onPress={() => setAccountOpen(v=> !v)}
+            onPress={() => {
+              setCommand(null);
+              setViewerTouch(false);
+              setAccountOpen(true);
+            }}
             disabled={busy || exporting}
             secondary
           />
-          {accountOpen &&<Account
-              key={endpoint}
-              endpoint={endpoint}
-              session={account}
-              onChange={next=> {
-                if (account && account.user.id !== next?.user.id) {
-                  setCurrent(null);
-                  setCandidate(null);
-                  setPhoto(null);
-                  setFailed(null);
-                  setPrompt('');
-                  setHome(true);
-                  retryRequest.current = null;
-                }
-                setAccount(next);
-              }}
-              onClose={() => setAccountOpen(false)}
-            />}
+
           <View style={[s.statusRow, { justifyContent: 'flex-end' }]}>
             <Text style={s.edition}>EXPERIMENT 01</Text>
           </View>

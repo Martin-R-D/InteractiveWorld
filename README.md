@@ -161,7 +161,7 @@ The viewer uses fixed bundled dependencies, CSP blocking network resources, disa
 
 ## Accounts
 
-Use **Sign in / Create account** to register with a name, email and a password of at least 12 characters. Generation requires sign-in; browsing the home screen does not. The account panel supports sign-out and permanent deletion with password confirmation. Email verification and email-based password recovery are not configured in this local version.
+Use **Sign in / Create account** to register with a name, email and a password of at least 12 characters. The app requires sign-in before showing its home screen or scanning tools. Account management opens on a separate screen, and signing out returns to sign-in. The account panel supports sign-out and permanent deletion with password confirmation. Email verification and email-based password recovery are not configured in this local version.
 
 The backend uses Drizzle ORM and SQLite through Node 24's built-in SQLite driver. The database is created automatically at `DATABASE_PATH` (default `.local/interactiveworld.db`). Database files and journals are ignored by Git; migrations are committed. Back up the database before changing schemas. Never delete it to reset the application unless you intend to remove all accounts.
 
