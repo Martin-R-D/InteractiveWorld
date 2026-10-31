@@ -9,8 +9,7 @@
   <a href="#run-on-your-android-phone">Quick start</a> ·
   <a href="#a-photo-becomes-a-playground">Preview</a> ·
   <a href="#how-it-works">Architecture</a> ·
-  <a href="TEST_RESULTS.md">Test results</a> ·
-  <a href="IMPLEMENTATION_PLAN.md">Build checkpoints</a>
+  <a href="#bring-them-together">Worlds</a>
 </p>
 
 # InteractiveWorld
@@ -41,6 +40,7 @@ Turn a photo into a stylized procedural 3D object, interact with its parts, and 
 | Chat edits | Change the current creation without rebuilding or restarting |
 | White + dark themes | Switch with one tap; your choice is remembered locally |
 | Recovery | Keep the last working scene when a replacement fails |
+| Bring them together | Arrange your saved objects in a shared world and describe a short interaction |
 
 ## How it works
 
@@ -178,3 +178,18 @@ Future tables can reference `users.id`; saved objects reference their owning use
 Tap **Save** after an object has loaded successfully. **My objects** lists your account's saved creations, with descriptions and dates. Opening an entry rebuilds its interactive model locally without an AI call. The saved snapshot includes the analysis/description, scene code, actions and sound selections, but not the original photo or the current animation pose. Identical saves are deduplicated per account; edited versions are separate entries.
 
 The `saved_objects` table stores a UUID, owner UUID, name, description, version snapshot JSON, content hash and creation timestamp. Owner/date indexes support paginated browsing; owner/hash uniqueness prevents duplicate saves. Account deletion also removes saved objects. Migration 002 runs automatically on startup while retaining existing accounts. Saved objects are stored in your backend database, so use the same backend across devices and back up its database.
+
+## Bring them together
+
+Open **My worlds · Bring them together** from the app, or **Create a world** from My objects.
+
+1. **Choose your cast.** Add up to four objects from your own saved collection. The same object can appear more than once.
+2. **Arrange the stage.** Tap a model or its name to select it. Move, turn, and resize it with labeled controls. Its original design and local actions remain available.
+3. **Give them a story.** Describe what should happen, then press **Bring them together**. For example: “Make the ball jump onto the platform, then bounce.”
+4. **Play and keep it.** Play / Replay runs the interaction; Reset to start restores the arrangement. Save world stores the layout and interaction in your account for later. Leaving an edited world offers Save, Keep editing, or Discard.
+
+Worlds reuse saved geometry rather than asking AI to redraw it. Each object is centered on the floor and normalized to a 2.5-unit longest dimension before applying your size setting. Separate object instances keep separate materials and actions. The AI receives object descriptions, dimensions, placement, and available actions—not photos or source code—and returns a validated sequence of movement, turning, and existing actions. Calls use Sonnet 4.6 with low effort. Playback and reopening saved worlds run locally without AI calls.
+
+Interactions are stylized animation, not a physics simulation: there is no collision solver, fluid simulation, or new articulation beyond each object's existing actions. Sequences last up to 20 seconds with at most 16 steps. A world can contain up to 240 mesh parts across its four objects; overly detailed combinations show an error and let you remove an object. Changing the layout clears the old interaction so it cannot run against outdated positions.
+
+Migration 003 adds an owner-indexed `worlds` table with a stable UUID, name, layout/interaction JSON, and creation/update timestamps. Layout members reference saved object IDs; the server resolves and checks ownership on every preview, animation, save, and open. Client-supplied scene code is not accepted by world endpoints. Account deletion cascades to worlds. Existing accounts and saved objects are retained when the migration runs automatically at startup.

@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { openDatabase } from "../server/db/index.mjs";
 import { createAuth } from "../server/auth.mjs";
@@ -26,6 +29,47 @@ const member = () => ({
   position: [0, 0, 0],
   rotation: 0,
   scale: 1,
+});
+
+test("world migration preserves accounts and saved worlds survive database reopen", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "iw-world-persistence-"));
+  const filename = join(directory, "test.db");
+  let database = openDatabase(filename);
+  try {
+    const userId = randomUUID();
+    await database.db
+      .insert(users)
+      .values({
+        id: userId,
+        email: "persist@example.com",
+        name: "Test",
+        createdAt: 1,
+      });
+    const document = {
+      name: "Persistent world",
+      members: [member()],
+      plan: null,
+    };
+    await database.db
+      .insert(worlds)
+      .values({
+        id: randomUUID(),
+        userId,
+        name: document.name,
+        documentJson: JSON.stringify(document),
+        createdAt: 1,
+        updatedAt: 2,
+      });
+    database.close();
+    database = openDatabase(filename);
+    assert.equal((await database.db.select().from(users).all()).length, 1);
+    const [saved] = await database.db.select().from(worlds).all();
+    assert.deepEqual(JSON.parse(saved.documentJson), document);
+    assert.equal(saved.userId, userId);
+  } finally {
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("world API only accepts owned saved objects and isolates world reads and updates", async (t) => {

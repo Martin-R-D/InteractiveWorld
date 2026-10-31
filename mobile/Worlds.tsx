@@ -325,6 +325,7 @@ function WorldEditor({
   const [touching, setTouching] = useState(false);
   const [command, setCommand] = useState<ViewerProps["command"]>(null);
   const lock = useRef(false);
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const mounted = useRef(true);
   const viewerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -337,7 +338,9 @@ function WorldEditor({
     () => ({
       kind: "world",
       world: { name: "World", members: document.members, plan: document.plan },
-      objects,
+      objects: objects.filter((o) =>
+        document.members.some((m) => m.objectId === o.id),
+      ),
     }),
     [document.members, document.plan, objects],
   );
@@ -509,6 +512,7 @@ function WorldEditor({
           if (!mounted.current) return;
           change({ ...document, plan: data.plan });
           setStatus("Your interaction is ready. Press Play to watch.");
+          scroll.current?.scrollTo({ y: 0, animated: false });
         },
         attempt,
       );
@@ -536,6 +540,7 @@ function WorldEditor({
     <SafeAreaView style={s.safe}>
       <StatusBar style={dark ? "light" : "dark"} />
       <ScrollView
+        ref={scroll}
         contentContainerStyle={s.page}
         keyboardShouldPersistTaps="handled"
         scrollEnabled={!touching}
@@ -618,6 +623,27 @@ function WorldEditor({
                 onMessage={message}
               />
             </View>
+            {document.plan && (
+              <View style={{ padding: 12 }}>
+                <View style={s.actions}>
+                  <Button
+                    label={playing ? "Playing…" : "Play / Replay"}
+                    disabled={disabled || !ready}
+                    onPress={() => {
+                      scroll.current?.scrollTo({ y: 0, animated: false });
+                      setPlaying(true);
+                      send("world-play");
+                    }}
+                  />
+                  <Button
+                    label="Reset to start"
+                    secondary
+                    disabled={!!busy || !ready}
+                    onPress={() => send("world-stop")}
+                  />
+                </View>
+              </View>
+            )}
             <View style={[s.viewerFooter, { flexWrap: "wrap", gap: 10 }]}>
               <Text style={s.small}>
                 {playing
@@ -638,6 +664,12 @@ function WorldEditor({
                 />
               </View>
             </View>
+          </View>
+        )}
+        {document.plan && (
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Your little story</Text>
+            <Text style={s.muted}>{document.plan.summary}</Text>
           </View>
         )}
         {!!viewerError && (
@@ -862,28 +894,6 @@ function WorldEditor({
               A short animated interpretation. Shapes stay intact; movements are
               stylized.
             </Text>
-          </View>
-        )}
-        {document.plan && (
-          <View style={s.card}>
-            <Text style={s.cardTitle}>Your little story</Text>
-            <Text style={s.muted}>{document.plan.summary}</Text>
-            <View style={s.actions}>
-              <Button
-                label={playing ? "Playing…" : "Play / Replay"}
-                disabled={disabled || !ready}
-                onPress={() => {
-                  setPlaying(true);
-                  send("world-play");
-                }}
-              />
-              <Button
-                label="Reset to start"
-                secondary
-                disabled={!!busy || !ready}
-                onPress={() => send("world-stop")}
-              />
-            </View>
           </View>
         )}
       </ScrollView>
