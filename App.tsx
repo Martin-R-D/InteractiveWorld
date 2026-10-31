@@ -1,3 +1,4 @@
+import Account, { restoreSession, AccountSession } from './mobile/Account';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -61,6 +62,8 @@ function Main() {
   const [url, setUrl] = useState(`http://${host}:3001`),
     [settings, setSettings] = useState(false),
     [connection, setConnection] = useState('Checking connection…');
+  const [accountOpen, setAccountOpen] = useState(false),
+    [account, setAccount] = useState<AccountSession | null>(null);
   const [home, setHome] = useState(true);
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [photo, setPhoto] = useState<Photo | null>(null),
@@ -99,6 +102,18 @@ function Main() {
   useEffect(() => {
     void check();
   }, []);
+  useEffect(() => {
+    let active = true;
+    setAccount(null);
+    restoreSession(endpoint)
+      .then(value=> {
+        if (active) setAccount(value);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [endpoint]);
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
@@ -152,6 +167,11 @@ function Main() {
     targetOverride?: string,
     retryBody?: Record<string, unknown>) {
     if (locked.current || exportRequest.current) return;
+    if (!account || account.endpoint !== endpoint) {
+      setAccountOpen(true);
+      scroll.current?.scrollTo({ y: 0, animated: true });
+      return;
+    }
     if (!retryBody && mode === 'generate' && !photo) return;
     if (!retryBody && mode === 'edit' && (!current || !prompt.trim())) return;
     if (!/^https?:\/\//.test(endpoint)) {
@@ -189,10 +209,14 @@ function Main() {
       const requestId = Crypto.randomUUID();
       const response = await fetch(endpoint + '/scene', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + account.token },
         signal: AbortSignal.timeout(110000),
         body: JSON.stringify({ ...requestBody, requestId })});
       const body = await response.json();
+      if (response.status === 401) {
+        setAccount(null);
+        setAccountOpen(true);
+      }
       if (!response.ok) throw new Error(body.error ?? 'Scene request failed.');
       if (body.result.kind === 'unrecognized') {
         setErrorTitle('We couldn’t find an object');
@@ -371,6 +395,30 @@ function Main() {
               </Pressable>
             </View>
           </View>
+          <Button
+            label={account ? 'My account' : 'Sign in / Create account'}
+            onPress={() => setAccountOpen(v=> !v)}
+            disabled={busy || exporting}
+            secondary
+          />
+          {accountOpen &&<Account
+              key={endpoint}
+              endpoint={endpoint}
+              session={account}
+              onChange={next=> {
+                if (account && account.user.id !== next?.user.id) {
+                  setCurrent(null);
+                  setCandidate(null);
+                  setPhoto(null);
+                  setFailed(null);
+                  setPrompt('');
+                  setHome(true);
+                  retryRequest.current = null;
+                }
+                setAccount(next);
+              }}
+              onClose={() => setAccountOpen(false)}
+            />}
           <View style={[s.statusRow, { justifyContent: 'flex-end' }]}>
             <Text style={s.edition}>EXPERIMENT 01</Text>
           </View>

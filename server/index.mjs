@@ -1,3 +1,5 @@
+import { openDatabase } from './db/index.mjs';
+import { createAuth } from './auth.mjs';
 import express from 'express';
 import { createService } from './service.mjs';
 import { requestSchema } from '../shared/contract.mjs';
@@ -5,6 +7,8 @@ import { networkInterfaces } from 'node:os';
 
 const generate = createService({ key: process.env.CLAUDE_API });
 const app = express();
+const { db } = openDatabase();
+const auth = createAuth(db);
 app.disable('x-powered-by');
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -15,24 +19,26 @@ app.use((req, res, next) => {
     return res.status(403).json({ error: 'Origin is not allowed' });
   if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
 app.use(express.json({ limit: '2mb' }));
+app.use('/auth', auth.router);
 app.get('/health', (_, res) =>
   res.json({
     name: 'InteractiveWorld',
     ready: !!process.env.CLAUDE_API,
     model: 'claude-sonnet-4-6',
     effort: 'low'}));
-app.post('/scene', async (req, res, next) => {
+app.post('/scene', auth.guard, async (req, res, next) => {
   try {
     const parsed = requestSchema.safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ error: 'Invalid request. Check the image, scene and prompt.' });
-    res.json(await generate(parsed.data));
+    res.json(
+      await generate({ ...parsed.data, requestId: req.account.id + ':' + parsed.data.requestId }));
   } catch (e) {
     next(e);
   }

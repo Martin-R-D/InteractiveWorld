@@ -74,7 +74,7 @@ Requirements: Node 24, npm, Android Expo Go compatible with SDK 58, and the phon
 
 Test `http://YOUR_COMPUTER_WIFI_IP:3001/health` in the phone browser if connection fails. Permit Node through Windows Firewall on your private network if Windows asks. Disable neither the firewall nor certificate validation. Guest Wi-Fi/client isolation and VPN routing can prevent local connections.
 
-The backend is a local prototype for a trusted network, without account authentication. Do not expose port 3001 to the public internet. Production hosting needs HTTPS, authentication and per-user authorization/rate limits. Plain HTTP LAN testing is supported in Expo Go; for a standalone APK use an HTTPS backend URL configured through the app's connection screen.
+The backend is a local prototype for a trusted network with account authentication. Do not expose port 3001 to the public internet. Production hosting needs HTTPS and per-user generation quotas. Plain HTTP LAN testing is supported in Expo Go; for a standalone APK use an HTTPS backend URL configured through the app's connection screen.
 
 ## Controls and recovery
 
@@ -158,3 +158,17 @@ The viewer uses fixed bundled dependencies, CSP blocking network resources, disa
 - [Expo Go versions](https://expo.dev/go)
 - Live cup test photograph: [Coffee cup - beskaaret 2.JPG](https://commons.wikimedia.org/wiki/File:Coffee_cup_-_beskaaret_2.JPG), Øyvind Holmstad, CC0. Downloaded only to ignored local test artifacts.
 - Live duck test photograph: [Yellow Rubber Duck.jpg](https://commons.wikimedia.org/wiki/File:Yellow_Rubber_Duck.jpg), RandomPerson238, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Resized for testing; downloaded only to ignored local test artifacts. Scene screenshots show generated procedural geometry.
+
+## Accounts
+
+Use **Sign in / Create account** to register with a name, email and a password of at least 12 characters. Generation requires sign-in; browsing the home screen does not. The account panel supports sign-out and permanent deletion with password confirmation. Email verification and email-based password recovery are not configured in this local version.
+
+The backend uses Drizzle ORM and SQLite through Node 24's built-in SQLite driver. The database is created automatically at `DATABASE_PATH` (default `.local/interactiveworld.db`). Database files and journals are ignored by Git; migrations are committed. Back up the database before changing schemas. Never delete it to reset the application unless you intend to remove all accounts.
+
+- `users`: stable UUID, unique normalized email, display name, creation timestamp.
+- `credentials`: password hash linked to the user; separate from the public profile.
+- `sessions`: hashed random token, user reference and expiration, with lookup indexes. Account deletion cascades to credentials and sessions.
+
+Passwords use salted scrypt. Sessions expire after 30 days and are revoked on sign-out. Native tokens use Expo SecureStore; browser tokens use sessionStorage and survive reloads in the same tab. Changing backend addresses does not send the existing token to the new address. Auth endpoints are rate-limited. Use HTTPS before using real credentials over an untrusted network; local HTTP is for development on a trusted network.
+
+Future tables can reference `users.id`; no model storage is included. PostgreSQL migration will require a PostgreSQL Drizzle schema/driver and a data transfer retaining UUIDs, followed by running equivalent migrations. The mobile account API does not need to change. SQLite is intended for this single-backend setup; move to PostgreSQL before running multiple backend instances. The in-memory rate limiter must also move to a shared store at that point.
