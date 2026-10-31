@@ -13,7 +13,12 @@ export function makeWorld(data) {
     active: new Map(),
     members: new Map(),
     box: new THREE.Box3(),
-    plan: document.plan,
+    plan: document.plan
+      ? {
+          ...document.plan,
+          steps: [...document.plan.steps].sort((a, b) => a.at - b.at),
+        }
+      : null,
   };
   let meshes = 0;
   try {
