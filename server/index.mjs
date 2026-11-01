@@ -44,8 +44,8 @@ app.get("/health", (_, res) =>
   res.json({
     name: "InteractiveWorld",
     ready: !!process.env.CLAUDE_API,
-    model: "claude-sonnet-4-6",
-    effort: "medium",
+    model: "claude-sonnet-5-5",
+    effort: "low",
   }),
 );
 app.use("/scene", createScenes(auth.guard, generate));

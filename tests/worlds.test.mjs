@@ -336,10 +336,10 @@ test("world AI uses configured Sonnet effort, excludes source code and rejects i
   assert.deepEqual(await generate(request), plan);
   await generate(request);
   assert.equal(calls, 1);
-  assert.equal(payload.model, "claude-sonnet-4-6");
+  assert.equal(payload.model, "claude-sonnet-5-5");
   assert.equal(payload.max_tokens, 16000);
-  assert.equal(payload.thinking, undefined);
-  assert.equal(payload.output_config.effort, "medium");
+  assert.deepEqual(payload.thinking, { type: "between_tools" });
+  assert.equal(payload.output_config.effort, "low");
   assert.equal(payload.messages[0].content.includes(scene.code), false);
   plan.steps[0].actionId = "invented";
   await assert.rejects(

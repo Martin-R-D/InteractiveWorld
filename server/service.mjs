@@ -104,7 +104,8 @@ export function createService({ key, transport = fetch }) {
         {
           ...base,
           max_tokens: MAX_OUTPUT,
-          output_config: { effort: "medium" },
+          thinking: { type: "between_tools" },
+          output_config: { effort: "low" },
         },
         request.signal,
       );

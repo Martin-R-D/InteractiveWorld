@@ -19,13 +19,13 @@ test("all generation calls use fixed configured Sonnet effort; duplicate id is c
     key: "fake",
     transport: async (url, options) => {
       const body = JSON.parse(options.body);
-      assert.equal(body.model, "claude-sonnet-4-6");
+      assert.equal(body.model, "claude-sonnet-5-5");
       if (url.endsWith("count_tokens"))
         return { ok: true, json: async () => ({ input_tokens: 1200 }) };
       calls++;
-      assert.equal(body.output_config.effort, "medium");
+      assert.equal(body.output_config.effort, "low");
       assert.equal(body.max_tokens, 32000);
-      assert.equal(body.thinking, undefined);
+      assert.deepEqual(body.thinking, { type: "between_tools" });
       return {
         ok: true,
         json: async () => ({

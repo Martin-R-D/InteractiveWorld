@@ -47,7 +47,8 @@ export function createWorldService({ key, transport = fetch }) {
           body: JSON.stringify({
             model: MODEL,
             max_tokens: MAX_WORLD_OUTPUT,
-            output_config: { effort: "medium" },
+            thinking: { type: "between_tools" },
+            output_config: { effort: "low" },
             system: SYSTEM,
             messages: [
               {
