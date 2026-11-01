@@ -1,5 +1,6 @@
 import { MODEL, MAX_OUTPUT, MAX_INPUT } from "./config.mjs";
 import { SYSTEM, resultSchema } from "../shared/contract.mjs";
+import { parseResponseJson } from "./response-json.mjs";
 export function createService({ key, transport = fetch }) {
   let busy = false;
   const cache = new Map();
@@ -103,7 +104,6 @@ export function createService({ key, transport = fetch }) {
         {
           ...base,
           max_tokens: MAX_OUTPUT,
-          thinking: { type: "adaptive" },
           output_config: { effort: "medium" },
         },
         request.signal,
@@ -122,11 +122,7 @@ export function createService({ key, transport = fetch }) {
         .join("");
       let result;
       try {
-        result = resultSchema.parse(
-          JSON.parse(
-            text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, ""),
-          ),
-        );
+        result = resultSchema.parse(parseResponseJson(text));
       } catch {
         throw Object.assign(
           new Error(

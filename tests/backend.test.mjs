@@ -25,6 +25,7 @@ test("all generation calls use fixed configured Sonnet effort; duplicate id is c
       calls++;
       assert.equal(body.output_config.effort, "medium");
       assert.equal(body.max_tokens, 32000);
+      assert.equal(body.thinking, undefined);
       return {
         ok: true,
         json: async () => ({

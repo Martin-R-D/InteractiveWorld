@@ -1,6 +1,7 @@
 import { MODEL, MAX_WORLD_OUTPUT } from "./config.mjs";
 import { planSchema, validateWorldActions } from "../shared/world.mjs";
 import { describeWorld } from "../viewer/world.mjs";
+import { parseResponseJson } from "./response-json.mjs";
 
 const SYSTEM = `You choreograph short, playful interactions between existing saved 3D objects in InteractiveWorld.
 Return ONLY JSON: {"summary":"Brief plain-language explanation","steps":[{"memberId":"exact supplied id","at":0,"duration":2,"position":[0,0,0],"rotation":0,"actionId":"optional exact existing action id"}]}.
@@ -46,7 +47,6 @@ export function createWorldService({ key, transport = fetch }) {
           body: JSON.stringify({
             model: MODEL,
             max_tokens: MAX_WORLD_OUTPUT,
-            thinking: { type: "adaptive" },
             output_config: { effort: "medium" },
             system: SYSTEM,
             messages: [
@@ -70,9 +70,7 @@ export function createWorldService({ key, transport = fetch }) {
         .filter((b) => b.type === "text")
         .map((b) => b.text)
         .join("");
-      const plan = planSchema.parse(
-        JSON.parse(text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "")),
-      );
+      const plan = planSchema.parse(parseResponseJson(text));
       validateWorldActions({ ...world, plan }, objects);
       cache.set(requestId, plan);
       if (cache.size > 30) cache.delete(cache.keys().next().value);
