@@ -1,136 +1,196 @@
-<p align="center"><img src="docs/assets/banner.svg" alt="InteractiveWorld — Your world, a little more alive." width="100%" /></p>
-
 <p align="center">
-  <strong>A camera. A little imagination. A world you can touch.</strong><br/>
-  Expo 58 · React Native · Three.js · Claude Sonnet 4.6
+  <img src="docs/assets/banner.svg" alt="InteractiveWorld — Your world, a little more alive." width="100%" />
 </p>
 
 <p align="center">
-  <a href="#run-on-your-android-phone">Quick start</a> ·
-  <a href="#a-photo-becomes-a-playground">Preview</a> ·
-  <a href="#how-it-works">Architecture</a> ·
-  <a href="#bring-them-together">Worlds</a>
+  <strong>Scan the ordinary. Create something extraordinary.</strong><br/>
+  Turn everyday objects into interactive 3D creations—and bring them together in a world of your own.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Expo-58-172b27?style=flat-square" alt="Expo SDK 58" />
+  <img src="https://img.shields.io/badge/React_Native-Android_%2B_Web-35513e?style=flat-square" alt="React Native · Android and web" />
+  <img src="https://img.shields.io/badge/Three.js-Interactive_3D-587065?style=flat-square" alt="Three.js · Interactive 3D" />
+  <img src="https://img.shields.io/badge/Drizzle-SQLite-b7ee8a?style=flat-square&labelColor=172b27" alt="Drizzle ORM · SQLite" />
+</p>
+
+<p align="center">
+  <a href="#from-a-photo-to-something-you-can-play-with">See the app</a> ·
+  <a href="#bring-them-together">Explore Worlds</a> ·
+  <a href="#run-it-locally">Get started</a> ·
+  <a href="#under-the-surface">How it works</a>
 </p>
 
 # InteractiveWorld
 
-Turn a photo into a stylized procedural 3D object, interact with its parts, and change it through chat. The app uses Expo SDK 58 / React Native, locally bundled Three.js inside a WebView, and a Node backend calling Claude Sonnet 4.6 at low effort.
+Your mug, a rubber duck, a desk lamp: photograph something around you and explore a procedural 3D interpretation of it. Rotate the model, tap its parts, try its actions, ask for a change, or export it as a GLB file. Save your favorites to your account, then put them on the same stage and describe what happens next.
 
-## A photo becomes a playground
+**Capture → explore → save → bring together.**
 
-| Fresh by default | A quieter dark mode |
+## From a photo to something you can play with
+
+Two photo-generated objects, shown in the app's current interface:
+
+| A little personality | A little coffee break |
 | :---: | :---: |
-| <img src="docs/assets/light-theme.jpg" alt="InteractiveWorld default white theme" width="300" /> | <img src="docs/assets/dark-theme.jpg" alt="InteractiveWorld saved dark theme" width="300" /> |
+| <img src="docs/assets/scan-duck.jpg" alt="Photo-generated rubber duck with interactive actions and Save and Export controls" width="340" /> | <img src="docs/assets/scan-cup.jpg" alt="Photo-generated coffee cup and saucer in the InteractiveWorld viewer" width="340" /> |
+| A rubber duck becomes a model with its own playful actions. | A cup and saucer keep their distinctive colors, shape, and decorative details. |
 
-*Actual browser screenshots at a phone-sized viewport. Physical Android verification is a separate checklist.*
+These are actual browser screenshots of generated scenes at a phone-sized viewport. Models are procedural interpretations of photographs, rather than exact 3D scans or photogrammetry meshes.
 
-<p align="center"><img src="docs/assets/live-scene.jpg" alt="A real photo-generated rubber duck in InteractiveWorld's white-themed 3D viewer, with wobble and spin actions" width="360" /></p>
+### Familiar navigation. Room to create.
 
-*A real Sonnet-generated scene from the final integration test. No mock response was used in this preview.*
+| Start with a photo | Keep your creations |
+| :---: | :---: |
+| <img src="docs/assets/home.jpg" alt="White-themed home screen with Camera, Gallery and persistent bottom navigation" width="300" /> | <img src="docs/assets/objects.jpg" alt="Saved objects library with tappable model cards" width="300" /> |
 
-**Capture → create → interact → reimagine.** Photograph a desk lamp, a favorite mug, or a toy. InteractiveWorld identifies it and writes a new procedural scene while the app is running. Tap a part, try a suggested action, or ask for a change. There is no fixed catalog of object models.
+- **Home** puts Camera and Gallery within easy reach. Add an optional hint, confirm the preview, and tap **Bring it to life**.
+- **Objects** holds your saved models. Tap a card to reopen the model and its actions without another AI request.
+- **Worlds** brings objects from your saved collection onto one shared stage.
+- **Account** keeps profile and account actions together. The app requires sign-in before scanning.
 
-| Feature | What you can do |
+The white and dark palettes share the same layout. Theme preference is remembered on the device. Back links use compact labels such as **← Home**; model controls group **Save** and **Export** together. The world editor keeps Back and Save visible while you scroll and checks for unsaved changes before leaving.
+
+<details>
+<summary><strong>After dark</strong> — the same experience in a quieter palette</summary>
+<br/>
+<p align="center"><img src="docs/assets/home-dark.jpg" alt="InteractiveWorld dark theme with the same Camera, Gallery and bottom navigation controls" width="300" /></p>
+</details>
+
+## Bring them together
+
+**Your saved objects. One shared stage. A story you direct.**
+
+> “Make the duck turn toward the coffee cup, waddle closer, then wobble happily. Keep the cup still.”
+
+<p align="center">
+  <img src="docs/assets/world.jpg" alt="A little coffee break: the generated duck and cup together in a saved interactive World, with playback and arrangement controls" width="380" />
+</p>
+
+*The same saved duck and cup, arranged in the current Worlds editor. The example interaction was generated through the real World planning flow. The screenshot shows a still view of the scene.*
+
+1. Open **Worlds → + New world** and choose up to four objects from your own saved collection.
+2. Tap an object or its name to select it. Move, turn, and resize it with the arrangement controls.
+3. Describe the interaction and tap **Animate**. Use **Play** to watch it and **Reset** to return to the starting arrangement.
+4. Tap **Save** to keep the world in your account. Reopen it later to play, rearrange, or create another interaction.
+
+Worlds reuse each object's saved geometry and available actions. The AI plans movement, turns, and existing behaviors; it does not redraw the objects. Playback and reopening a saved world run locally without an AI request. Changing the layout clears the previous interaction so it cannot play against outdated positions.
+
+Interactions are short, stylized animations: up to 20 seconds and 16 steps. They do not include collision physics, fluid simulation, or new articulation beyond the objects' existing actions. A world supports four object instances and up to 240 mesh parts in total; the same saved object can appear more than once.
+
+## Made for exploring
+
+| Feature | What it brings to the experience |
 | --- | --- |
-| Camera + gallery | Confirm a resized photo and clarify the intended object |
-| Generated 3D | Explore a stylized object with studio lighting and shadows |
-| Playful actions | Tap parts and trigger generated animation and color changes |
-| Object sounds | 21 contextual sound effects selected by Claude; mute from the viewer |
-| GLB export | Save or share the current object as a portable static 3D model |
-| Chat edits | Change the current creation without rebuilding or restarting |
-| White + dark themes | Switch with one tap; your choice is remembered locally |
-| Recovery | Keep the last working scene when a replacement fails |
-| Bring them together | Arrange your saved objects in a shared world and describe a short interaction |
+| Camera and gallery | Preview and confirm a resized photo; clarify which object you mean |
+| Interactive 3D | Orbit, zoom, reset the view, and tap generated actions |
+| Reimagine | Describe a change under **What if…?** and update the current model |
+| Contextual sounds | 21 short local effects, selected when an interaction suits them; mute in the viewer |
+| Saved objects | Account-owned snapshots with scene code, descriptions, actions, and sound choices |
+| Saved worlds | Keep an arrangement and its interaction together for later playback |
+| GLB export | Save or share a portable, static model with geometry and materials |
+| Stop and retry | Cancel generation, recover from errors, or choose another photo |
+| Two themes | White by default, with an optional dark palette |
 
-## How it works
+### Small details that matter
+
+A failed replacement keeps the last working model safe. Unrecognized photos show guidance and photo-selection options. **Stop** cancels the in-flight request, and requests reaching two minutes stop with a retryable error. Photo analysis permits ten attempts in a rolling three-minute window, with a visible countdown when the limit is reached; enforcement currently lives in backend memory and resets when the backend restarts.
+
+Sounds are synthesized locally, with no downloads or extra AI calls. They are short stylized effects, rather than recordings of the photographed object. Browsers may require a tap inside the viewer before audio can play.
+
+**Export** opens the system sharing/save dialog on mobile or a download in the browser. The `.glb` includes the last successfully loaded object's resting geometry and materials. Interactive animations, sounds, studio lighting, and the floor are excluded. Export runs locally; the file size limit is 9 MiB.
+
+## Run it locally
+
+You need **Node.js 24**, npm, and Android Expo Go compatible with **Expo SDK 58**. For phone testing, connect the phone and computer to the same trusted Wi-Fi network.
+
+```powershell
+npm ci
+Copy-Item .env.example .env
+```
+
+Fill in `CLAUDE_API` in `.env`. Keep it on the backend; never prefix the key with `EXPO_PUBLIC_` or commit it.
+
+Start the backend:
+
+```powershell
+npm run server
+```
+
+In a second terminal, start Expo:
+
+```powershell
+npm start
+```
+
+Scan the QR code in Expo Go. The app detects the Metro host and connects to port `3001`. Use the top-right **•••** connection settings to adjust the backend address, then tap **Test connection**. Create an account or sign in to reach Home.
+
+For browser development, use `npm run web`. Expo's tunnel option can help with the Expo connection (`npm start -- --tunnel`), but it does **not** tunnel the separate backend: the phone must still reach its configured backend URL.
+
+If the phone cannot connect, open `http://YOUR_COMPUTER_WIFI_IP:3001/health` in its browser. Check the address, private-network firewall permission, and Wi-Fi client isolation. A standalone mobile build should use an HTTPS backend.
+
+### Your data
+
+Drizzle ORM uses Node 24's built-in SQLite driver. Migrations run automatically, and the default database is `.local/interactiveworld.db`; override it with `DATABASE_PATH`. Database files, local artifacts, and secrets are ignored by Git. Back up the database before schema changes or moving the backend.
+
+- Accounts use salted scrypt password hashes and revocable sessions that expire after 30 days.
+- Native session tokens use Expo SecureStore; the browser uses sessionStorage.
+- Saved objects belong to their account and exclude the original photo and current animation pose. Identical saves are deduplicated; edited models can be saved separately.
+- Saved worlds store the arrangement, interaction, and references to owned objects. Ownership is checked by the backend.
+- Signing out revokes the session. Account deletion requires password confirmation and removes the account's saved objects and worlds.
+
+The current unsaved model remains available during the session through **← Home** and its **Open →** shortcut. Restarting the app clears that unsaved scene. Save models and worlds you want to keep; they are stored in the backend database. Email verification and email-based password recovery are not configured.
+
+SQLite suits this single-backend prototype. Scaling to multiple instances requires a shared database such as PostgreSQL, shared rate-limit storage, and an HTTPS deployment. Stable UUIDs and owner-linked tables give future features a consistent foundation; a PostgreSQL migration still requires a driver/schema migration and data transfer.
+
+## Under the surface
 
 ```mermaid
 flowchart LR
-    A["📷 Photo or gallery"] --> B["Phone\nResize + confirm"]
-    B --> C["Backend\nValidate + generate"]
-    C --> D["Sonnet 4.6\nLow effort"]
-    D --> E["Object + scene code\nSuggested actions"]
-    E --> F["Isolated interpreter\nBounded toolkit"]
-    F --> G["Three.js WebView\nTouch + animate"]
-    G --> H["💬 Reimagine"]
-    H --> C
+    A[Photo] --> B[Resize and confirm]
+    B --> C[Authenticated backend]
+    C --> D[AI scene generation]
+    D --> E[Validated scene]
+    E --> F[Restricted interpreter]
+    F --> G[Three.js viewer]
+    G --> H[Saved objects]
+    H --> I[World arrangement]
+    I --> J[Validated interaction plan]
+    J --> G
     style A fill:#edf7e3,stroke:#90b971,color:#22372b
-    style D fill:#b7ee8a,stroke:#709d4e,color:#22372b
-    style G fill:#edf7e3,stroke:#90b971,color:#22372b
+    style G fill:#b7ee8a,stroke:#709d4e,color:#22372b
+    style I fill:#edf7e3,stroke:#90b971,color:#22372b
 ```
 
-The mobile app handles photos and chat. The backend protects the API key and validates requests. The viewer supplies a fixed rendering toolkit, while Claude generates object-specific JavaScript inside a restricted interpreter.
-
-## Run on your Android phone
-
-Requirements: Node 24, npm, Android Expo Go compatible with SDK 58, and the phone and computer on the same trusted Wi-Fi network.
-
-1. Run `npm ci` in the project directory.
-2. Create `.env` from `.env.example` and set `CLAUDE_API`. Never prefix this key with `EXPO_PUBLIC_`.
-3. In one terminal, run `npm run server`. It prints available phone connection addresses.
-4. In a second terminal, run `npm start` and scan the QR code with Expo Go. If entering the URL manually, use `exp://YOUR_COMPUTER_WIFI_IP:8081`.
-5. The app detects the Metro host and uses port 3001. Open the top-right connection settings to correct the backend URL and tap **Test connection** if needed.
-6. Take a photo or select one, confirm the preview, and tap **Bring it to life**. Use the optional hint to identify a particular object. The photo is resized to a maximum dimension of 1024 pixels and JPEG compressed before transmission.
-
-Test `http://YOUR_COMPUTER_WIFI_IP:3001/health` in the phone browser if connection fails. Permit Node through Windows Firewall on your private network if Windows asks. Disable neither the firewall nor certificate validation. Guest Wi-Fi/client isolation and VPN routing can prevent local connections.
-
-The backend is a local prototype for a trusted network with account authentication. Do not expose port 3001 to the public internet. Production hosting needs HTTPS and per-user generation quotas. Plain HTTP LAN testing is supported in Expo Go; for a standalone APK use an HTTPS backend URL configured through the app's connection screen.
-
-## Controls and recovery
-
-- **Back to home** returns to photo selection without discarding the current model. **Return to current model** opens it again without an AI request. This keeps one model for the current session; restarting the app still clears it. A successful new scan replaces it.
-
-- Drag to rotate; pinch to zoom; tap **Reset view** to restore framing.
-- Tap a part or action button to activate a generated behavior; tap again to toggle/reset it.
-- Claude may attach a short local sound to an action when it suits the object, such as a retractable pen click. Silent actions stay silent. Use **Sound on / Sound off** in the viewer to mute. In browsers, tap the 3D viewer first to enable audio. Effects are synthesized approximations, not recordings of the photographed object. Existing scenes remain compatible; generate a new scene or request an edit to add sound.
-- Describe a change under **What if…?** and tap **Reimagine**.
-- The working scene remains while edits are generated. Invalid candidates do not replace it.
-- **Retry viewer** reuses the already generated code with no API call. **Repair scene once** requests one paid repair. No automatic paid retries occur.
-- **Reload viewer** recovers a lost graphics context using the last working scene.
-- If recognition fails, the app explains how to improve the photo and offers **Try another photo** (gallery) and **Take a new photo** (camera). Opening either picker does not generate a scene or spend tokens; the new photo still requires confirmation.
-- Scenes and connection settings currently live in memory; restarting the app starts a fresh scene session. Saved objects can be reopened from My objects. Theme preference is saved on the device.
-
-## Export your model
-
-Tap **Export 3D model** below the viewer. On Android/iOS, choose an available save or sharing destination in the system dialog; on web, check your browser downloads. Closing the dialog without choosing a destination does not save a permanent copy.
-
-The `.glb` file contains the latest successfully loaded object in its resting pose, including geometry and materials. It excludes the studio floor, lighting, sounds and interactive animations. Open it in a GLB-compatible application such as Blender. Export happens locally and makes no AI requests. Export failures leave the current scene intact; files above 9 MiB are rejected to bound memory use.
-
-## Local sound library
-
-Claude selects sounds per interaction, and can leave an action silent. All 21 effects are synthesized locally; no audio downloads or additional AI calls are needed. These are playful approximations, not realistic recordings.
-
-| Sounds | Example uses |
+| Layer | Responsibility |
 | --- | --- |
-| Pen click, switch click, tick | Pens, switches, clocks, latches |
-| Tap, knock, thud | Solid objects, wooden boxes, cushions |
-| Bell, chime, clink | Bells, ornaments, glasses, coins |
-| Pop, boing, squeak, rattle | Lids, springs, rubber toys, shakers |
-| Beep, buzz, horn | Electronics, toy motors, vehicles |
-| Pluck, drum, whistle | Strings, hollow containers, whistles |
-| Drip, hoofbeats | Water drops, walking horse figures |
+| `App.tsx`, `mobile/` | Capture, bottom navigation, account UI, saved libraries, and the viewer bridge |
+| `server/` | Authentication, ownership, Drizzle persistence, request validation, and AI transport |
+| `shared/` | Scene and World schemas, the bounded geometry toolkit, and the local sound catalog |
+| `viewer/` | Three.js rendering, restricted ES5 interpretation, actions, World playback, and GLB export |
+| `tests/` | Accounts, ownership, generation contracts, cancellation, exports, sounds, and viewer regressions |
 
-Sound definitions and object guidance live in `shared/sounds.mjs`. Buzzes and hoofbeats are short bursts; there are no continuous loops or synthesized animal voices.
+Generated source receives a bounded material/part/action toolkit inside a restricted interpreter. It cannot access host APIs, import modules, or fetch external resources. The viewer bundles its dependencies, restricts navigation and file access, and blocks network resources with CSP. Web preview additionally uses a sandboxed iframe. Static geometry can be batched without removing triangles; independently animated transforms stay separate.
 
-## Development and verification
+The backend is intended for local development on a trusted network. Production hosting needs HTTPS, operational monitoring, and durable shared storage and quotas. Resource limits reduce hangs, but a lost graphics context or stopped WebView can still require **Reload**.
+
+## Develop and verify
 
 ```text
 npm run typecheck
 npm test
 npm run viewer:build
-npx expo-doctor
 npx expo export --platform android --platform web
-npm run web
 node --env-file=.env scripts/check-secrets.mjs
 ```
 
-Rebuild the viewer after editing `viewer/`. The generated HTML is checked in so a clean checkout can run directly. Browser UI checks complement but do not replace Android device checks. There are no mock responses in the app flow; tests use explicitly fake transports and never require credentials.
+Rebuild the viewer after editing `viewer/`; its generated HTML is checked in so a clean checkout can run directly. Automated tests use fake transports and do not need API credentials. Browser screenshots and checks complement Android device testing.
 
-For a no-cost renderer recovery check, run `npm run viewer:build`, then `node scripts/viewer-qa.mjs` and open `http://localhost:3002`. The explicitly labeled fixture verifies blocked host access, loop termination, and the previous scene's action after failed replacements.
+For the isolated renderer recovery check, run `npm run viewer:build`, then `node scripts/viewer-qa.mjs` and open `http://localhost:3002`.
 
-## APK
+### Android APK
 
-`eas.json` contains an internal-distribution `preview` profile with Android `buildType: apk`.
+`eas.json` includes a `preview` profile for an internal-distribution APK:
 
 ```text
 npx eas-cli login
@@ -138,58 +198,13 @@ npx eas-cli build:configure
 npx eas-cli build --platform android --profile preview
 ```
 
-Link the project to your own Expo account when prompted. Download the APK from the completed EAS build link and install it on Android. This requires an Expo account, network access and EAS availability; the repository does not contain an already-built APK. Google Play release is outside this prototype.
+Link your Expo account when prompted and download the APK from the completed EAS build. The repository does not include a prebuilt APK.
 
-## Design and boundaries
+## Screenshot sources
 
-- `App.tsx`, `mobile/`: native photo flow, UI, and tightly constrained viewer bridge.
-- `viewer/`: fixed renderer and restricted ES5 interpreter. Generated source never runs through host `eval` and receives only JSON-based material, part and action operations.
-- `shared/contract.mjs`: schemas and documented generation toolkit.
-- `server/`: validation and Claude transport. Secrets and photos are not written to logs.
-- `tests/`: deterministic contract, backend and interpreter regression tests.
+Screenshots show the real app UI using an isolated local showcase account. The cup example used the app's repair path to correct a duplicate part identifier before capture. The object examples were generated from these public test photographs:
 
-The viewer uses fixed bundled dependencies, CSP blocking network resources, disabled file access, and navigation restrictions. Browser preview additionally uses an opaque-origin sandboxed iframe. Mobile isolation relies on the interpreter and WebView controls, not an assumption that iframe sandboxing applies to Android. Complexity and interpreter-step limits reduce hangs; severe WebView resource exhaustion can still require reloading its process. Arbitrary callbacks/imports are intentionally outside the toolkit; generated code composes many objects and behaviors through geometry and parameterized animation tracks.
+- Rubber duck: [Yellow Rubber Duck.jpg](https://commons.wikimedia.org/wiki/File:Yellow_Rubber_Duck.jpg), RandomPerson238, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- Coffee cup: [Coffee cup - beskaaret 2.JPG](https://commons.wikimedia.org/wiki/File:Coffee_cup_-_beskaaret_2.JPG), Øyvind Holmstad, CC0.
 
-
-## References
-
-- [Sonnet 4.6 model and pricing](https://platform.claude.com/docs/en/models/sonnet-4-6/overview)
-- [Effort settings](https://platform.claude.com/docs/en/build-with-claude/effort)
-- [Expo Go versions](https://expo.dev/go)
-- Live cup test photograph: [Coffee cup - beskaaret 2.JPG](https://commons.wikimedia.org/wiki/File:Coffee_cup_-_beskaaret_2.JPG), Øyvind Holmstad, CC0. Downloaded only to ignored local test artifacts.
-- Live duck test photograph: [Yellow Rubber Duck.jpg](https://commons.wikimedia.org/wiki/File:Yellow_Rubber_Duck.jpg), RandomPerson238, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Resized for testing; downloaded only to ignored local test artifacts. Scene screenshots show generated procedural geometry.
-
-## Accounts
-
-Use **Sign in / Create account** to register with a name, email and a password of at least 12 characters. The app requires sign-in before showing its home screen or scanning tools. Account management opens on a separate screen, and signing out returns to sign-in. The account panel supports sign-out and permanent deletion with password confirmation. Email verification and email-based password recovery are not configured in this local version.
-
-The backend uses Drizzle ORM and SQLite through Node 24's built-in SQLite driver. The database is created automatically at `DATABASE_PATH` (default `.local/interactiveworld.db`). Database files and journals are ignored by Git; migrations are committed. Back up the database before changing schemas. Never delete it to reset the application unless you intend to remove all accounts.
-
-- `users`: stable UUID, unique normalized email, display name, creation timestamp.
-- `credentials`: password hash linked to the user; separate from the public profile.
-- `sessions`: hashed random token, user reference and expiration, with lookup indexes. Account deletion cascades to credentials and sessions.
-
-Passwords use salted scrypt. Sessions expire after 30 days and are revoked on sign-out. Native tokens use Expo SecureStore; browser tokens use sessionStorage and survive reloads in the same tab. Changing backend addresses does not send the existing token to the new address. Auth endpoints are rate-limited. Use HTTPS before using real credentials over an untrusted network; local HTTP is for development on a trusted network.
-
-Future tables can reference `users.id`; saved objects reference their owning user. PostgreSQL migration will require a PostgreSQL Drizzle schema/driver and a data transfer retaining UUIDs, followed by running equivalent migrations. The mobile account API does not need to change. SQLite is intended for this single-backend setup; move to PostgreSQL before running multiple backend instances. The in-memory rate limiter must also move to a shared store at that point.
-
-## Saved objects
-
-Tap **Save** after an object has loaded successfully. **My objects** lists your account's saved creations, with descriptions and dates. Opening an entry rebuilds its interactive model locally without an AI call. The saved snapshot includes the analysis/description, scene code, actions and sound selections, but not the original photo or the current animation pose. Identical saves are deduplicated per account; edited versions are separate entries.
-
-The `saved_objects` table stores a UUID, owner UUID, name, description, version snapshot JSON, content hash and creation timestamp. Owner/date indexes support paginated browsing; owner/hash uniqueness prevents duplicate saves. Account deletion also removes saved objects. Migration 002 runs automatically on startup while retaining existing accounts. Saved objects are stored in your backend database, so use the same backend across devices and back up its database.
-
-## Bring them together
-
-Open **My worlds · Bring them together** from the app, or **Create a world** from My objects.
-
-1. **Choose your cast.** Add up to four objects from your own saved collection. The same object can appear more than once.
-2. **Arrange the stage.** Tap a model or its name to select it. Move, turn, and resize it with labeled controls. Its original design and local actions remain available.
-3. **Give them a story.** Describe what should happen, then press **Bring them together**. For example: “Make the ball jump onto the platform, then bounce.”
-4. **Play and keep it.** Play / Replay runs the interaction; Reset to start restores the arrangement. Save world stores the layout and interaction in your account for later. Leaving an edited world offers Save, Keep editing, or Discard.
-
-Worlds reuse saved geometry rather than asking AI to redraw it. Each object is centered on the floor and normalized to a 2.5-unit longest dimension before applying your size setting. Separate object instances keep separate materials and actions. The AI receives object descriptions, dimensions, placement, and available actions—not photos or source code—and returns a validated sequence of movement, turning, and existing actions. Calls use Sonnet 4.6 with low effort. Playback and reopening saved worlds run locally without AI calls.
-
-Interactions are stylized animation, not a physics simulation: there is no collision solver, fluid simulation, or new articulation beyond each object's existing actions. Sequences last up to 20 seconds with at most 16 steps. A world can contain up to 240 mesh parts across its four objects; overly detailed combinations show an error and let you remove an object. Changing the layout clears the old interaction so it cannot run against outdated positions.
-
-Migration 003 adds an owner-indexed `worlds` table with a stable UUID, name, layout/interaction JSON, and creation/update timestamps. Layout members reference saved object IDs; the server resolves and checks ownership on every preview, animation, save, and open. Client-supplied scene code is not accepted by world endpoints. Account deletion cascades to worlds. Existing accounts and saved objects are retained when the migration runs automatically at startup.
+Photographs were resized for testing and remain outside the tracked screenshot assets. The screenshots display generated procedural geometry. Account and World data used for the showcase are separate from the normal application database.
