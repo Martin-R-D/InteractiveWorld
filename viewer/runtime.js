@@ -5,6 +5,8 @@ import { createSoundPlayer } from "./sounds.mjs";
 import { makeScene, dispose } from "./model.mjs";
 import { makeWorld, resetWorld, sampleWorld } from "./world.mjs";
 
+import { optimizeScene } from "./optimize.mjs";
+
 const send = (type, payload = {}) => {
   const message = JSON.stringify({ type, ...payload });
   if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(message);
@@ -100,6 +102,7 @@ function receive(raw) {
       let next;
       try {
         next = buildScene(m.scene);
+        optimizeScene(next);
         // Compile and render offscreen before replacing the last good scene.
         const previous = current;
         if (previous) world.remove(previous.root);
