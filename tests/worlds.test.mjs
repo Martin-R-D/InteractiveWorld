@@ -37,29 +37,25 @@ test("world migration preserves accounts and saved worlds survive database reope
   let database = openDatabase(filename);
   try {
     const userId = randomUUID();
-    await database.db
-      .insert(users)
-      .values({
-        id: userId,
-        email: "persist@example.com",
-        name: "Test",
-        createdAt: 1,
-      });
+    await database.db.insert(users).values({
+      id: userId,
+      email: "persist@example.com",
+      name: "Test",
+      createdAt: 1,
+    });
     const document = {
       name: "Persistent world",
       members: [member()],
       plan: null,
     };
-    await database.db
-      .insert(worlds)
-      .values({
-        id: randomUUID(),
-        userId,
-        name: document.name,
-        documentJson: JSON.stringify(document),
-        createdAt: 1,
-        updatedAt: 2,
-      });
+    await database.db.insert(worlds).values({
+      id: randomUUID(),
+      userId,
+      name: document.name,
+      documentJson: JSON.stringify(document),
+      createdAt: 1,
+      updatedAt: 2,
+    });
     database.close();
     database = openDatabase(filename);
     assert.equal((await database.db.select().from(users).all()).length, 1);
@@ -309,7 +305,7 @@ test("world limits reject unsafe, overlapping and dangling animation steps", () 
   );
 });
 
-test("world AI uses Sonnet low effort, excludes source code and rejects invented actions", async () => {
+test("world AI uses configured Sonnet effort, excludes source code and rejects invented actions", async () => {
   const m = member();
   let payload;
   let calls = 0;
@@ -341,7 +337,7 @@ test("world AI uses Sonnet low effort, excludes source code and rejects invented
   await generate(request);
   assert.equal(calls, 1);
   assert.equal(payload.model, "claude-sonnet-4-6");
-  assert.equal(payload.output_config.effort, "low");
+  assert.equal(payload.output_config.effort, "medium");
   assert.equal(payload.messages[0].content.includes(scene.code), false);
   plan.steps[0].actionId = "invented";
   await assert.rejects(

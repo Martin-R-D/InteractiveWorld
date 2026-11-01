@@ -38,7 +38,7 @@ export function createWorldService({ key, transport = fetch }) {
             model: MODEL,
             max_tokens: 2500,
             thinking: { type: "adaptive" },
-            output_config: { effort: "low" },
+            output_config: { effort: "medium" },
             system: SYSTEM,
             messages: [
               {

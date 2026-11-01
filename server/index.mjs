@@ -45,7 +45,7 @@ app.get("/health", (_, res) =>
     name: "InteractiveWorld",
     ready: !!process.env.CLAUDE_API,
     model: "claude-sonnet-4-6",
-    effort: "low",
+    effort: "medium",
   }),
 );
 app.post("/scene", auth.guard, async (req, res, next) => {
