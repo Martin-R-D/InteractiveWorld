@@ -167,7 +167,16 @@ export function makeScene(data) {
     },
   };
   try {
-    executeScene(data.code, toolkit);
+    const declarations = new Map();
+    executeScene(data.code, {
+      ...toolkit,
+      action(id, spec) {
+        if (declarations.has(id) || declarations.size >= 6)
+          throw new Error("Duplicate action or action limit");
+        declarations.set(id, spec);
+      },
+    });
+    for (const [id, spec] of declarations) toolkit.action(id, spec);
     if (!parts.size || !data.actions?.length) throw new Error("Scene is empty");
     if (
       data.actions.length !== actions.size ||
