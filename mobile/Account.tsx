@@ -1,43 +1,55 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator } from 'react-native';
-import { useTheme } from './theme';
-import { readSession, writeSession, clearSession } from './sessionStore';
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  ActivityIndicator,
+} from "react-native";
+import { useTheme } from "./theme";
+import { readSession, writeSession, clearSession } from "./sessionStore";
 export type AccountSession = {
   endpoint: string;
   token: string;
-  user: { id: string; email: string; name: string }};
+  user: { id: string; email: string; name: string };
+};
 export default function Account({
   endpoint,
   session,
   onChange,
-  onClose}: {
+  onClose,
+}: {
   endpoint: string;
   session: AccountSession | null;
   onChange: (s: AccountSession | null) => void;
-  onClose?: () => void}) {
+  onClose?: () => void;
+}) {
   const { s, dark } = useTheme();
   const [register, setRegister] = useState(false),
-    [name, setName] = useState(''),
-    [email, setEmail] = useState(''),
-    [password, setPassword] = useState(''),
-    [error, setError] = useState(''),
+    [name, setName] = useState(""),
+    [email, setEmail] = useState(""),
+    [password, setPassword] = useState(""),
+    [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [deleting, setDeleting] = useState(false);
   async function submit(action: string) {
     if (busy) return;
     setBusy(true);
-    setError('');
+    setError("");
     try {
-      const response = await fetch(endpoint + '/auth/' + action, {
-        method: 'POST',
+      const response = await fetch(endpoint + "/auth/" + action, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          ...(session ? { Authorization: 'Bearer ' + session.token } : {})},
+          "Content-Type": "application/json",
+          ...(session ? { Authorization: "Bearer " + session.token } : {}),
+        },
         body: JSON.stringify({ name, email, password }),
-        signal: AbortSignal.timeout(15000)});
+        signal: AbortSignal.timeout(15000),
+      });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Account request failed.');
-      if (action === 'logout' || action === 'delete') {
+      if (!response.ok)
+        throw new Error(data.error ?? "Account request failed.");
+      if (action === "logout" || action === "delete") {
         await clearSession();
         onChange(null);
         setDeleting(false);
@@ -46,40 +58,56 @@ export default function Account({
         await writeSession(JSON.stringify(next));
         onChange(next);
       }
-      setPassword('');
+      setPassword("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Account request failed. Try again.');
+      setError(
+        e instanceof Error ? e.message : "Account request failed. Try again.",
+      );
     } finally {
       setBusy(false);
     }
   }
   function button(label: string, action: () => void, destructive = false) {
-    return <Pressable
+    return (
+      <Pressable
         accessibilityRole="button"
         disabled={busy}
         onPress={action}
         style={({ pressed }) => [
           s.button,
           destructive && {
-            backgroundColor: dark ? '#482e32' : '#f9dddd',
+            backgroundColor: dark ? "#482e32" : "#f9dddd",
             borderWidth: 1,
-            borderColor: dark ? '#795057' : '#edbcbc'},
-          (pressed || busy) && { opacity:.7 }]}
+            borderColor: dark ? "#795057" : "#edbcbc",
+          },
+          (pressed || busy) && { opacity: 0.7 },
+        ]}
       >
-        <Text style={[s.buttonText, destructive && { color: dark ? '#ffc4c4' : '#923b42' }]}>
+        <Text
+          style={[
+            s.buttonText,
+            destructive && { color: dark ? "#ffc4c4" : "#923b42" },
+          ]}
+        >
           {label}
         </Text>
-      </Pressable>;
+      </Pressable>
+    );
   }
-  return <View style={s.card}>
+  return (
+    <View style={s.card}>
       <Text style={s.cardTitle}>
-        {session ? 'Your account' : register ? 'Create account' : 'Sign in'}
+        {session ? "Profile" : register ? "Create account" : "Sign in"}
       </Text>
-      {session ?<>
+      {session ? (
+        <>
           <Text style={s.muted}>{session.user.name}</Text>
           <Text style={s.muted}>{session.user.email}</Text>
-          {deleting ?<>
-              <Text style={s.muted}>Delete your account permanently? Enter your password to confirm.</Text>
+          {deleting ? (
+            <>
+              <Text style={s.muted}>
+                Delete your account permanently? Enter your password to confirm.
+              </Text>
               <TextInput
                 accessibilityLabel="Confirm password"
                 secureTextEntry
@@ -87,24 +115,31 @@ export default function Account({
                 onChangeText={setPassword}
                 style={s.input}
               />
-              {button('Confirm account deletion', () => void submit('delete'), true)}
-              {button('Cancel deletion', () => {
+              {button("Delete account", () => void submit("delete"), true)}
+              {button("Cancel", () => {
                 setDeleting(false);
-                setPassword('');
+                setPassword("");
               })}
-            </>:<>
-              {button('Sign out', () => void submit('logout'), true)}
-              {button('Delete account', () => setDeleting(true), true)}
-            </>}
-        </>:<>
-          {register &&<TextInput
+            </>
+          ) : (
+            <>
+              {button("Sign out", () => void submit("logout"), true)}
+              {button("Delete account", () => setDeleting(true), true)}
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          {register && (
+            <TextInput
               accessibilityLabel="Name"
               placeholder="Name"
               value={name}
               onChangeText={setName}
               maxLength={80}
               style={s.input}
-            />}
+            />
+          )}
           <TextInput
             accessibilityLabel="Email"
             placeholder="Email"
@@ -118,7 +153,9 @@ export default function Account({
           />
           <TextInput
             accessibilityLabel="Password"
-            placeholder={register ? 'Password (at least 12 characters)' : 'Password'}
+            placeholder={
+              register ? "Password (at least 12 characters)" : "Password"
+            }
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -126,34 +163,42 @@ export default function Account({
             style={s.input}
           />
           {button(
-            register ? 'Create account' : 'Sign in',
-            () => void submit(register ? 'register' : 'login'))}
-          {button(register ? 'Already have an account? Sign in' : 'Create a new account', () => {
+            register ? "Create account" : "Sign in",
+            () => void submit(register ? "register" : "login"),
+          )}
+          {button(register ? "Sign in instead" : "Create account", () => {
             setRegister(!register);
-            setPassword('');
-            setError('');
+            setPassword("");
+            setError("");
           })}
-        </>}
+        </>
+      )}
       {busy && <ActivityIndicator />}
-      {!!error &&<Text accessibilityLiveRegion="polite" style={s.errorText}>
+      {!!error && (
+        <Text accessibilityLiveRegion="polite" style={s.errorText}>
           {error}
-        </Text>}
-      {onClose && button('Back to app', onClose)}
-    </View>;
+        </Text>
+      )}
+      {onClose && button("← Home", onClose)}
+    </View>
+  );
 }
-export async function restoreSession(endpoint: string): Promise<AccountSession | null> {
+export async function restoreSession(
+  endpoint: string,
+): Promise<AccountSession | null> {
   const raw = await readSession();
   if (!raw) return null;
   const saved = JSON.parse(raw) as AccountSession;
   if (saved.endpoint !== endpoint) return null;
-  const response = await fetch(endpoint + '/auth/me', {
-    headers: { Authorization: 'Bearer ' + saved.token },
-    signal: AbortSignal.timeout(5000)});
+  const response = await fetch(endpoint + "/auth/me", {
+    headers: { Authorization: "Bearer " + saved.token },
+    signal: AbortSignal.timeout(5000),
+  });
   if (response.status === 401) {
     await clearSession();
     return null;
   }
-  if (!response.ok) throw new Error('Could not check account');
+  if (!response.ok) throw new Error("Could not check account");
   const data = await response.json();
   return { ...saved, user: data.user };
 }

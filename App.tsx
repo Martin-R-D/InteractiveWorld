@@ -1,3 +1,4 @@
+import BottomNav, { MainTab } from "./mobile/BottomNav";
 import { usePhotoLimit } from "./mobile/usePhotoLimit";
 import MyObjects from "./mobile/MyObjects";
 import Worlds from "./mobile/Worlds";
@@ -6,6 +7,7 @@ import { restoreSession, AccountSession } from "./mobile/Account";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -85,6 +87,7 @@ function Main() {
   const [restoring, setRestoring] = useState(true);
   const [accountOpen, setAccountOpen] = useState(false),
     [account, setAccount] = useState<AccountSession | null>(null);
+  const [worldEditing, setWorldEditing] = useState(false);
   const photoLimit = usePhotoLimit(account);
   const generation = useRef<AbortController | null>(null);
   const generationDeadline = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -563,43 +566,98 @@ function Main() {
     setAccount(next);
     setAccountOpen(false);
   }
-  if (restoring || !account || account.endpoint !== endpoint || accountOpen)
+  const activeTab: MainTab = accountOpen
+    ? "Account"
+    : libraryOpen
+      ? "Objects"
+      : worldsOpen
+        ? "Worlds"
+        : "Home";
+  function selectTab(tab: MainTab) {
+    if (busy || exporting) return;
+    setCommand(null);
+    setViewerTouch(false);
+    setAccountOpen(tab === "Account");
+    setLibraryOpen(tab === "Objects");
+    setWorldsOpen(tab === "Worlds");
+    if (tab === "Home") navigateHome(true);
+  }
+  function shell(content: React.ReactNode) {
     return (
+      <View style={s.safe}>
+        <View style={{ flex: 1 }}>{content}</View>
+        {account &&
+          !restoring &&
+          account.endpoint === endpoint &&
+          !(worldsOpen && worldEditing) && (
+            <BottomNav
+              active={activeTab}
+              disabled={busy || exporting}
+              onSelect={selectTab}
+            />
+          )}
+      </View>
+    );
+  }
+  useEffect(() => {
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!account || (worldsOpen && worldEditing)) return false;
+      if (busy || exporting) return true;
+      if (accountOpen || libraryOpen || worldsOpen || !home || photo) {
+        selectTab("Home");
+        return true;
+      }
+      return false;
+    });
+    return () => listener.remove();
+  }, [
+    account,
+    accountOpen,
+    libraryOpen,
+    worldsOpen,
+    worldEditing,
+    busy,
+    exporting,
+    home,
+    photo,
+  ]);
+  if (restoring || !account || account.endpoint !== endpoint || accountOpen)
+    return shell(
       <AccountPage
         key={endpoint}
         endpoint={endpoint}
         session={account?.endpoint === endpoint ? account : null}
         restoring={restoring}
         onChange={changeAccount}
-        onBack={account ? () => setAccountOpen(false) : undefined}
         onEndpoint={setUrl}
-      />
+      />,
     );
   if (libraryOpen)
-    return (
+    return shell(
       <MyObjects
         key={account.user.id}
         account={account}
-        onBack={() => setLibraryOpen(false)}
+        onBack={() => selectTab("Home")}
         onOpen={openSaved}
         onExpired={() => changeAccount(null)}
         onWorlds={() => {
           setLibraryOpen(false);
           setWorldsOpen(true);
         }}
-      />
+      />,
     );
   if (worldsOpen)
-    return (
+    return shell(
       <Worlds
         key={account.user.id}
         account={account}
-        onBack={() => setWorldsOpen(false)}
+        onBack={() => selectTab("Home")}
+        onEditingChange={setWorldEditing}
         onExpired={() => changeAccount(null)}
-      />
+      />,
     );
-  return (
-    <SafeAreaView style={s.safe}>
+  return shell(
+    <SafeAreaView style={s.safe} edges={["top", "left", "right"]}>
       <StatusBar style={dark ? "light" : "dark"} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -641,40 +699,6 @@ function Main() {
               </Pressable>
             </View>
           </View>
-          <Button
-            label="My worlds · Bring them together"
-            secondary
-            disabled={busy || exporting}
-            onPress={() => {
-              setCommand(null);
-              setViewerTouch(false);
-              setWorldsOpen(true);
-            }}
-          />
-          <Button
-            label="My objects"
-            onPress={() => {
-              setCommand(null);
-              setViewerTouch(false);
-              setLibraryOpen(true);
-            }}
-            disabled={busy || exporting}
-            secondary
-          />
-          <Button
-            label={account ? "My account" : "Sign in / Create account"}
-            onPress={() => {
-              setCommand(null);
-              setViewerTouch(false);
-              setAccountOpen(true);
-            }}
-            disabled={busy || exporting}
-            secondary
-          />
-
-          <View style={[s.statusRow, { justifyContent: "flex-end" }]}>
-            <Text style={s.edition}>EXPERIMENT 01</Text>
-          </View>
           {settings && (
             <View style={s.card}>
               <Text style={s.cardTitle}>Connect your workspace</Text>
@@ -699,26 +723,20 @@ function Main() {
             </View>
           )}
           {viewing && (
-            <Button
-              label="Back to home"
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Home"
               onPress={() => navigateHome(true)}
               disabled={busy || exporting}
-              secondary
-            />
-          )}
-          {!viewing && current && (
-            <View style={s.card}>
-              <Text style={s.cardTitle}>{current.name}</Text>
-              <Text style={s.muted}>
-                Your current model is still here for this session.
-              </Text>
-              <Button
-                label="Return to current model"
-                onPress={() => navigateHome(false)}
-                disabled={busy || exporting}
-                secondary
-              />
-            </View>
+              style={{
+                alignSelf: "flex-start",
+                minHeight: 44,
+                justifyContent: "center",
+                paddingHorizontal: 4,
+              }}
+            >
+              <Text style={s.link}>← Home</Text>
+            </Pressable>
           )}
           {!viewing && (
             <View style={s.hero}>
@@ -793,21 +811,40 @@ function Main() {
                 Start with one object and a clear photo.{"\n"}A lamp, a sneaker,
                 your favorite mug…
               </Text>
-              <View style={s.full}>
-                <Button
-                  label="◎  Take a photo"
-                  onPress={() => void choose(true)}
-                  disabled={busy}
-                />
-                <Button
-                  label="↗  Choose from gallery"
-                  onPress={() => void choose(false)}
-                  disabled={busy}
-                  secondary
-                />
+              <View style={[s.twoButtons, { width: "100%", marginTop: 8 }]}>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label="Camera"
+                    onPress={() => void choose(true)}
+                    disabled={busy}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label="Gallery"
+                    onPress={() => void choose(false)}
+                    disabled={busy}
+                    secondary
+                  />
+                </View>
               </View>
               <Text style={s.small}>STYLIZED 3D · MADE FROM YOUR PHOTO</Text>
             </View>
+          )}
+          {!viewing && !photo && current && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={"Open " + current.name}
+              onPress={() => navigateHome(false)}
+              disabled={busy || exporting}
+              style={[s.card, s.row]}
+            >
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={s.small}>CONTINUE EXPLORING</Text>
+                <Text style={s.cardTitle}>{current.name}</Text>
+              </View>
+              <Text style={s.link}>Open →</Text>
+            </Pressable>
           )}
           {photo && (
             <View style={s.card}>
@@ -919,12 +956,12 @@ function Main() {
                 />
               )}
               <Button
-                label="Try another photo"
+                label="Choose photo"
                 onPress={() => void choose(false)}
                 disabled={busy}
               />
               <Button
-                label="Take a new photo"
+                label="Camera"
                 onPress={() => void choose(true)}
                 disabled={busy}
                 secondary
@@ -939,7 +976,7 @@ function Main() {
               )}
               {failed && !repaired && (
                 <Button
-                  label="Repair scene once"
+                  label="Repair model"
                   onPress={() => void generate("repair")}
                   disabled={busy}
                   secondary
@@ -947,7 +984,7 @@ function Main() {
               )}
               {viewing && (
                 <Button
-                  label="Reload viewer"
+                  label="Reload"
                   onPress={() => {
                     setViewerKey((k) => k + 1);
                     setError("");
@@ -961,22 +998,28 @@ function Main() {
           {viewing && current && (
             <>
               <View style={s.card}>
-                <Button
-                  label="Save"
-                  onPress={() => void saveCurrent()}
-                  disabled={busy || exporting}
-                />
+                <View style={s.twoButtons}>
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      label="Save"
+                      onPress={() => void saveCurrent()}
+                      disabled={busy || exporting}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      label={exporting ? "Exporting…" : "Export"}
+                      onPress={exportCurrent}
+                      disabled={busy || exporting}
+                      secondary
+                    />
+                  </View>
+                </View>
                 {!!saveMessage && (
                   <Text accessibilityLiveRegion="polite" style={s.muted}>
                     {saveMessage}
                   </Text>
                 )}
-                <Button
-                  label={exporting ? "Exporting model..." : "Export 3D model"}
-                  onPress={exportCurrent}
-                  disabled={busy || exporting}
-                  secondary
-                />
                 <Text style={s.small}>
                   GLB file · static model · no sounds or animations
                 </Text>
@@ -1042,7 +1085,7 @@ function Main() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Button
-                      label="Open gallery"
+                      label="Gallery"
                       onPress={() => void choose(false)}
                       disabled={busy}
                       secondary
@@ -1062,6 +1105,6 @@ function Main() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaView>,
   );
 }

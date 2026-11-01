@@ -104,19 +104,12 @@ export default function MyObjects({
     );
   }
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={["top", "left", "right"]}>
       <StatusBar style={dark ? "light" : "dark"} />
       <ScrollView contentContainerStyle={s.page}>
         <Text style={s.brand}>InteractiveWorld</Text>
         <Text style={s.objectTitle}>My objects</Text>
-        {button("Back to app", onBack)}
-        <View style={s.card}>
-          <Text style={s.cardTitle}>Better together</Text>
-          <Text style={s.muted}>
-            Put your saved objects on one stage and imagine what happens next.
-          </Text>
-          {button("Create a world", onWorlds)}
-        </View>
+
         {loading ? (
           <ActivityIndicator />
         ) : (
@@ -127,25 +120,42 @@ export default function MyObjects({
                 <Text style={s.muted}>
                   Scan an object, then tap Save to keep it in your account.
                 </Text>
+                {button("Scan an object", onBack)}
               </View>
             )}
             {items.map((item) => (
-              <View key={item.id} style={s.card}>
+              <Pressable
+                key={item.id}
+                accessibilityRole="button"
+                accessibilityLabel={"Open " + item.name}
+                disabled={opening}
+                onPress={() => void open(item.id)}
+                style={({ pressed }) => [
+                  s.card,
+                  pressed && { opacity: 0.75 },
+                  opening && { opacity: 0.5 },
+                ]}
+              >
                 <Text style={s.cardTitle}>{item.name}</Text>
                 <Text style={s.muted}>{item.description}</Text>
                 <Text style={s.small}>
                   Saved {new Date(item.createdAt).toLocaleDateString()}
                 </Text>
-                {button("Open " + item.name, () => void open(item.id))}
-              </View>
+                <Text style={s.link}>Open →</Text>
+              </Pressable>
             ))}
             {offset > 0 &&
-              button("Previous page", () =>
-                setOffset(Math.max(0, offset - 20)),
-              )}
-            {next !== null && button("Next page", () => setOffset(next))}
+              button("← Previous", () => setOffset(Math.max(0, offset - 20)))}
+            {next !== null && button("Next →", () => setOffset(next))}
           </>
         )}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>Better together</Text>
+          <Text style={s.muted}>
+            Put your saved objects on one stage and imagine what happens next.
+          </Text>
+          {button("Explore worlds", onWorlds)}
+        </View>
         {opening && <ActivityIndicator />}
         {!!error && (
           <View style={s.card}>

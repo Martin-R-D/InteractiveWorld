@@ -165,13 +165,13 @@ function Collection({
       <View style={s.actions}>
         {page > 0 && (
           <Button
-            label="Previous page"
+            label="← Previous"
             secondary
             onPress={() => setPage(Math.max(0, page - 20))}
           />
         )}
         {next !== null && (
-          <Button label="Next page" secondary onPress={() => setPage(next)} />
+          <Button label="Next →" secondary onPress={() => setPage(next)} />
         )}
       </View>
     </View>
@@ -181,10 +181,12 @@ function Collection({
 export default function Worlds({
   account,
   onBack,
+  onEditingChange,
   onExpired,
 }: {
   account: AccountSession;
   onBack: () => void;
+  onEditingChange: (editing: boolean) => void;
   onExpired: () => void;
 }) {
   const { s, dark } = useTheme();
@@ -245,6 +247,9 @@ export default function Worlds({
       setLoading(false);
     }
   }
+  useEffect(() => {
+    onEditingChange(!!editing);
+  }, [!!editing, onEditingChange]);
   if (editing)
     return (
       <WorldEditor
@@ -254,18 +259,10 @@ export default function Worlds({
       />
     );
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView style={s.safe} edges={["top", "left", "right"]}>
       <StatusBar style={dark ? "light" : "dark"} />
       <ScrollView contentContainerStyle={s.page}>
-        <View style={s.row}>
-          <Text style={s.brand}>InteractiveWorld</Text>
-          <Button
-            label="Back to app"
-            secondary
-            onPress={onBack}
-            disabled={loading}
-          />
-        </View>
+        <Text style={s.brand}>InteractiveWorld</Text>
         <View style={s.hero}>
           <Text style={s.eyebrow}>BRING THEM TOGETHER</Text>
           <Text style={s.title}>My worlds</Text>
@@ -274,7 +271,7 @@ export default function Worlds({
           </Text>
         </View>
         <Button
-          label="+ Create a world"
+          label="+ New world"
           disabled={loading}
           onPress={() =>
             setEditing({
@@ -369,8 +366,10 @@ function WorldEditor({
   }
   function leave() {
     if (lock.current || playing) return;
-    if (dirty) setLeaving(true);
-    else onBack();
+    if (dirty) {
+      setLeaving(true);
+      scroll.current?.scrollTo({ y: 0, animated: true });
+    } else onBack();
   }
   useEffect(() => {
     const handler = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -477,9 +476,7 @@ function WorldEditor({
     setRetry(null);
     setCommand(null);
     if (resetPlan && document.plan)
-      setStatus(
-        "Layout changed. Create a new interaction for this arrangement.",
-      );
+      setStatus("Layout changed. Recreate for this arrangement.");
   }
   function add(id: string) {
     if (document.members.length >= 4) return;
@@ -614,25 +611,39 @@ function WorldEditor({
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar style={dark ? "light" : "dark"} />
+      <View
+        style={[
+          s.row,
+          {
+            paddingHorizontal: 22,
+            paddingVertical: 10,
+            width: "100%",
+            maxWidth: 650,
+            alignSelf: "center",
+          },
+        ]}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back to worlds"
+          disabled={disabled}
+          onPress={leave}
+          style={{ minHeight: 44, justifyContent: "center", paddingRight: 20 }}
+        >
+          <Text style={s.link}>← Worlds</Text>
+        </Pressable>
+        <Button
+          label={dirty || !worldId ? "Save" : "Saved"}
+          disabled={disabled || !ready || !document.name.trim()}
+          onPress={() => save()}
+        />
+      </View>
       <ScrollView
         ref={scroll}
         contentContainerStyle={s.page}
         keyboardShouldPersistTaps="handled"
         scrollEnabled={!touching}
       >
-        <View style={s.row}>
-          <Button
-            label="← My worlds"
-            secondary
-            disabled={disabled}
-            onPress={leave}
-          />
-          <Button
-            label={dirty || !worldId ? "Save world" : "Saved"}
-            disabled={disabled || !ready || !document.name.trim()}
-            onPress={() => save()}
-          />
-        </View>
         {leaving && (
           <View style={s.card}>
             <Text style={s.cardTitle}>Keep your changes?</Text>
@@ -640,7 +651,7 @@ function WorldEditor({
               Save this world so you can come back to it.
             </Text>
             <Button
-              label="Save and leave"
+              label="Save & leave"
               onPress={() => save(true)}
               disabled={disabled || !ready || !document.name.trim()}
             />
@@ -651,7 +662,7 @@ function WorldEditor({
               disabled={disabled}
             />
             <Button
-              label="Discard changes"
+              label="Discard"
               secondary
               onPress={onBack}
               disabled={disabled}
@@ -675,10 +686,7 @@ function WorldEditor({
               Start with something from your collection. Add a companion,
               arrange them, then imagine what happens next.
             </Text>
-            <Button
-              label="Add your first object"
-              onPress={() => setPicker(true)}
-            />
+            <Button label="+ Add object" onPress={() => setPicker(true)} />
           </View>
         ) : (
           <View style={s.viewerCard}>
@@ -702,7 +710,7 @@ function WorldEditor({
               <View style={{ padding: 12 }}>
                 <View style={s.actions}>
                   <Button
-                    label={playing ? "Playing…" : "Play / Replay"}
+                    label={playing ? "Playing…" : "Play"}
                     disabled={disabled || !ready}
                     onPress={() => {
                       scroll.current?.scrollTo({ y: 0, animated: false });
@@ -711,7 +719,7 @@ function WorldEditor({
                     }}
                   />
                   <Button
-                    label="Reset to start"
+                    label="Reset"
                     secondary
                     disabled={!!busy || !ready}
                     onPress={() => send("world-stop")}
@@ -727,7 +735,7 @@ function WorldEditor({
               </Text>
               <View style={s.actions}>
                 <Button
-                  label="Center view"
+                  label="Center"
                   secondary
                   onPress={() => send("reset")}
                   disabled={!ready}
@@ -914,7 +922,7 @@ function WorldEditor({
               </View>
             )}
             <Button
-              label="Remove from world"
+              label="Remove object"
               secondary
               disabled={disabled}
               onPress={() => {
@@ -952,7 +960,11 @@ function WorldEditor({
               ].map((idea) => (
                 <Button
                   key={idea}
-                  label={idea}
+                  label={
+                    idea === "Have them greet each other"
+                      ? "Say hello"
+                      : "Jump together"
+                  }
                   secondary
                   disabled={disabled}
                   onPress={() => setPrompt(idea)}
@@ -960,11 +972,7 @@ function WorldEditor({
               ))}
             </View>
             <Button
-              label={
-                document.plan
-                  ? "Create a new interaction"
-                  : "Bring them together"
-              }
+              label={document.plan ? "Recreate" : "Animate"}
               disabled={disabled || !ready || !prompt.trim()}
               onPress={animate}
             />
