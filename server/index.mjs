@@ -5,7 +5,7 @@ import { openDatabase } from "./db/index.mjs";
 import { createAuth } from "./auth.mjs";
 import express from "express";
 import { createService } from "./service.mjs";
-import { requestSchema } from "../shared/contract.mjs";
+import { createScenes } from "./scenes.mjs";
 import { networkInterfaces } from "node:os";
 
 const generate = createService({ key: process.env.CLAUDE_API });
@@ -48,23 +48,7 @@ app.get("/health", (_, res) =>
     effort: "medium",
   }),
 );
-app.post("/scene", auth.guard, async (req, res, next) => {
-  try {
-    const parsed = requestSchema.safeParse(req.body);
-    if (!parsed.success)
-      return res
-        .status(400)
-        .json({ error: "Invalid request. Check the image, scene and prompt." });
-    res.json(
-      await generate({
-        ...parsed.data,
-        requestId: req.account.id + ":" + parsed.data.requestId,
-      }),
-    );
-  } catch (e) {
-    next(e);
-  }
-});
+app.use("/scene", createScenes(auth.guard, generate));
 app.use((err, req, res, next) => {
   const status = err.status ?? 500;
   res.status(status).json({

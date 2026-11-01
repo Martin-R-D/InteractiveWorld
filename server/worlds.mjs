@@ -1,3 +1,4 @@
+import { withClientSignal } from "./request-control.mjs";
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -87,12 +88,23 @@ export function createWorlds(db, guard, generatePlan) {
         })
         .strict()
         .parse(req.body);
-      const objects = await resolve(input.world, req.account.id);
-      const plan = await generatePlan({
-        ...input,
-        objects,
-        requestId: req.account.id + ":" + input.requestId,
-      });
+      const { objects, plan } = await withClientSignal(
+        req,
+        res,
+        async (signal) => {
+          const objects = await resolve(input.world, req.account.id);
+          signal.throwIfAborted();
+          const plan = await generatePlan({
+            ...input,
+            objects,
+            signal,
+            requestId: req.account.id + ":" + input.requestId,
+          });
+          signal.throwIfAborted();
+          return { objects, plan };
+        },
+      );
+      if (res.destroyed) return;
       const world = worldSchema.parse({ ...input.world, plan });
       validateWorldActions(world, objects);
       res.json({ plan: world.plan });
@@ -123,14 +135,12 @@ export function createWorlds(db, guard, generatePlan) {
         if (!rows.length)
           return res.status(404).json({ error: "World not found." });
       } else {
-        await db
-          .insert(worlds)
-          .values({
-            ...values,
-            id,
-            userId: req.account.id,
-            createdAt: Date.now(),
-          });
+        await db.insert(worlds).values({
+          ...values,
+          id,
+          userId: req.account.id,
+          createdAt: Date.now(),
+        });
       }
       res.json({ id });
     } catch (error) {
@@ -159,16 +169,14 @@ export function createWorlds(db, guard, generatePlan) {
   });
   router.use((error, req, res, next) => {
     const status = error instanceof z.ZodError ? 400 : (error.status ?? 500);
-    res
-      .status(status)
-      .json({
-        error:
-          status === 400
-            ? "Check your world objects and animation, then try again."
-            : status === 500
-              ? "Could not update your world. Please try again."
-              : error.message,
-      });
+    res.status(status).json({
+      error:
+        status === 400
+          ? "Check your world objects and animation, then try again."
+          : status === 500
+            ? "Could not update your world. Please try again."
+            : error.message,
+    });
   });
   return router;
 }

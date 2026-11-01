@@ -1,4 +1,4 @@
-import { MODEL } from "./config.mjs";
+import { MODEL, MAX_WORLD_OUTPUT } from "./config.mjs";
 import { planSchema, validateWorldActions } from "../shared/world.mjs";
 import { describeWorld } from "../viewer/world.mjs";
 
@@ -11,7 +11,14 @@ Position is the object's bottom-center in world coordinates. Y up; floor y=0; X/
 export function createWorldService({ key, transport = fetch }) {
   let busy = false;
   const cache = new Map();
-  return async function generate({ world, objects, prompt, requestId }) {
+  return async function generate({
+    world,
+    objects,
+    prompt,
+    requestId,
+    signal,
+  }) {
+    signal?.throwIfAborted();
     if (cache.has(requestId)) return cache.get(requestId);
     if (busy)
       throw Object.assign(
@@ -33,10 +40,12 @@ export function createWorldService({ key, transport = fetch }) {
             "x-api-key": key,
             "anthropic-version": "2023-06-01",
           },
-          signal: AbortSignal.timeout(90000),
+          signal: signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(120000)])
+            : AbortSignal.timeout(120000),
           body: JSON.stringify({
             model: MODEL,
-            max_tokens: 2500,
+            max_tokens: MAX_WORLD_OUTPUT,
             thinking: { type: "adaptive" },
             output_config: { effort: "medium" },
             system: SYSTEM,
@@ -54,6 +63,7 @@ export function createWorldService({ key, transport = fetch }) {
       );
       if (!response.ok) throw new Error("Upstream error");
       const body = await response.json();
+      signal?.throwIfAborted();
       if (body.stop_reason !== "end_turn")
         throw new Error("Incomplete response");
       const text = body.content
@@ -68,6 +78,7 @@ export function createWorldService({ key, transport = fetch }) {
       if (cache.size > 30) cache.delete(cache.keys().next().value);
       return plan;
     } catch {
+      signal?.throwIfAborted();
       throw Object.assign(
         new Error(
           "Could not create this interaction. Try again or describe a simpler movement.",

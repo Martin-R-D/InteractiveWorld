@@ -24,7 +24,7 @@ test("all generation calls use fixed configured Sonnet effort; duplicate id is c
         return { ok: true, json: async () => ({ input_tokens: 1200 }) };
       calls++;
       assert.equal(body.output_config.effort, "medium");
-      assert.equal(body.max_tokens, 6000);
+      assert.equal(body.max_tokens, 32000);
       return {
         ok: true,
         json: async () => ({
@@ -56,7 +56,7 @@ test("overlarge context never sends a paid generation", async (t) => {
     key: "fake",
     transport: async () => {
       calls++;
-      return { ok: true, json: async () => ({ input_tokens: 16001 }) };
+      return { ok: true, json: async () => ({ input_tokens: 32001 }) };
     },
   });
   await assert.rejects(run(request), /too large/);

@@ -4,7 +4,8 @@ export function createService({ key, transport = fetch }) {
   let busy = false;
   const cache = new Map();
   const repaired = new Set();
-  async function post(path, body) {
+  async function post(path, body, signal) {
+    signal?.throwIfAborted();
     const response = await transport("https://api.anthropic.com/v1/" + path, {
       method: "POST",
       headers: {
@@ -13,7 +14,9 @@ export function createService({ key, transport = fetch }) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(90000),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(120000)])
+        : AbortSignal.timeout(120000),
     });
     if (!response.ok)
       throw Object.assign(
@@ -29,6 +32,7 @@ export function createService({ key, transport = fetch }) {
     return response.json();
   }
   return async function generate(request) {
+    request.signal?.throwIfAborted();
     if (cache.has(request.requestId)) return cache.get(request.requestId);
     if (busy)
       throw Object.assign(
@@ -81,7 +85,7 @@ export function createService({ key, transport = fetch }) {
         system: SYSTEM,
         messages: [{ role: "user", content }],
       };
-      const counted = await post("messages/count_tokens", base);
+      const counted = await post("messages/count_tokens", base, request.signal);
       if (
         !Number.isInteger(counted.input_tokens) ||
         counted.input_tokens > MAX_INPUT
@@ -92,13 +96,19 @@ export function createService({ key, transport = fetch }) {
           ),
           { status: 400 },
         );
+      request.signal?.throwIfAborted();
       if (repairKey) repaired.add(repairKey);
-      const response = await post("messages", {
-        ...base,
-        max_tokens: MAX_OUTPUT,
-        thinking: { type: "adaptive" },
-        output_config: { effort: "medium" },
-      });
+      const response = await post(
+        "messages",
+        {
+          ...base,
+          max_tokens: MAX_OUTPUT,
+          thinking: { type: "adaptive" },
+          output_config: { effort: "medium" },
+        },
+        request.signal,
+      );
+      request.signal?.throwIfAborted();
       if (response.stop_reason !== "end_turn")
         throw Object.assign(
           new Error(
@@ -137,6 +147,7 @@ export function createService({ key, transport = fetch }) {
       if (cache.size > 30) cache.delete(cache.keys().next().value);
       return output;
     } finally {
+      if (request.signal?.aborted && repairKey) repaired.delete(repairKey);
       busy = false;
     }
   };
