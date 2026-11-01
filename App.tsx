@@ -1,3 +1,4 @@
+import { usePhotoLimit } from "./mobile/usePhotoLimit";
 import MyObjects from "./mobile/MyObjects";
 import Worlds from "./mobile/Worlds";
 import AccountPage from "./mobile/AccountPage";
@@ -84,6 +85,18 @@ function Main() {
   const [restoring, setRestoring] = useState(true);
   const [accountOpen, setAccountOpen] = useState(false),
     [account, setAccount] = useState<AccountSession | null>(null);
+  const photoLimit = usePhotoLimit(account);
+  const generation = useRef<AbortController | null>(null);
+  const generationDeadline = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [generationNotice, setGenerationNotice] = useState("");
+  useEffect(
+    () => () => {
+      generation.current?.abort();
+      generation.current = null;
+      if (generationDeadline.current) clearTimeout(generationDeadline.current);
+    },
+    [],
+  );
   const [home, setHome] = useState(true);
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [photo, setPhoto] = useState<Photo | null>(null),
@@ -226,9 +239,25 @@ function Main() {
     }
   }
   function unlock() {
+    if (generationDeadline.current) clearTimeout(generationDeadline.current);
+    generationDeadline.current = null;
+    generation.current = null;
     locked.current = false;
     setPhase("");
     if (timer.current) clearTimeout(timer.current);
+  }
+  function stopGeneration() {
+    generation.current?.abort();
+    generation.current = null;
+    pending.current = null;
+    retryRequest.current = null;
+    setCandidate(null);
+    setFailed(null);
+    setError("");
+    setViewerKey((k) => k + 1);
+    setGenerationNotice("Stopped. You can try again when you’re ready.");
+    unlock();
+    void photoLimit.refresh();
   }
   async function generate(
     mode: "generate" | "edit" | "repair",
@@ -248,6 +277,10 @@ function Main() {
       setSettings(true);
       return;
     }
+    if (mode === "generate" && photoLimit.seconds > 0) return;
+    const controller = new AbortController();
+    generation.current = controller;
+    setGenerationNotice("");
     const repairError = error;
     retryRequest.current = null;
     setErrorTitle("Something went wrong");
@@ -264,6 +297,16 @@ function Main() {
             error: mode === "repair" ? repairError.slice(0, 400) : undefined,
           }),
     };
+    generationDeadline.current = setTimeout(() => {
+      if (generation.current !== controller) return;
+      stopGeneration();
+      setGenerationNotice("");
+      setErrorTitle("This request took too long");
+      setError(
+        "The request reached the 2-minute limit and was stopped. Please try again.",
+      );
+      retryRequest.current = { mode, body: requestBody };
+    }, 120000);
     locked.current = true;
     setPhase(
       mode === "generate"
@@ -286,10 +329,12 @@ function Main() {
           "Content-Type": "application/json",
           Authorization: "Bearer " + account.token,
         },
-        signal: AbortSignal.timeout(110000),
+        signal: controller.signal,
         body: JSON.stringify({ ...requestBody, requestId }),
       });
       const body = await response.json();
+      if (generation.current !== controller) return;
+      photoLimit.update(body.photoLimit);
       if (response.status === 401) {
         setAccount(null);
         setAccountOpen(true);
@@ -325,6 +370,7 @@ function Main() {
         }
       }, 15000);
     } catch (e) {
+      if (generation.current !== controller) return;
       if (mode !== "repair") retryRequest.current = { mode, body: requestBody };
       const message = (e instanceof Error ? e.message : "").replace(
         /Claude|Anthropic/gi,
@@ -797,9 +843,13 @@ function Main() {
                 editable={!busy}
               />
               <Button
-                label="Bring it to life  ↗"
+                label={
+                  photoLimit.seconds > 0
+                    ? `Try again in ${photoLimit.label}`
+                    : "Bring it to life  ↗"
+                }
                 onPress={() => void generate("generate")}
-                disabled={busy}
+                disabled={busy || photoLimit.seconds > 0}
               />
             </View>
           )}
@@ -814,11 +864,25 @@ function Main() {
                     setTarget(choice);
                     void generate("generate", choice);
                   }}
-                  disabled={busy}
+                  disabled={busy || photoLimit.seconds > 0}
                   secondary
                 />
               ))}
             </View>
+          )}
+          {photoLimit.seconds > 0 && (
+            <View style={s.card}>
+              <Text style={s.cardTitle}>A short pause for photo analysis</Text>
+              <Text style={s.muted}>
+                You can analyze up to 10 photos every 3 minutes. Try again in{" "}
+                {photoLimit.label}.
+              </Text>
+            </View>
+          )}
+          {!!generationNotice && (
+            <Text accessibilityLiveRegion="polite" style={s.muted}>
+              {generationNotice}
+            </Text>
           )}
           {busy && (
             <View accessibilityLiveRegion="polite" style={s.progress}>
@@ -829,6 +893,9 @@ function Main() {
                   A little imagination takes a moment.
                 </Text>
               </View>
+              {(generation.current || pending.current) && (
+                <Button label="Stop" secondary onPress={stopGeneration} />
+              )}
             </View>
           )}
           {!!error && (
@@ -843,7 +910,12 @@ function Main() {
                     if (request)
                       void generate(request.mode, undefined, request.body);
                   }}
-                  disabled={busy || exporting}
+                  disabled={
+                    busy ||
+                    exporting ||
+                    (retryRequest.current.mode === "generate" &&
+                      photoLimit.seconds > 0)
+                  }
                 />
               )}
               <Button

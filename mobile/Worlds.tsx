@@ -202,7 +202,7 @@ export default function Worlds({
       signal?.addEventListener("abort", abort);
       const timeout = setTimeout(
         abort,
-        path === "/worlds/animate" ? 110000 : 15000,
+        path === "/worlds/animate" ? 120000 : 15000,
       );
       try {
         const response = await fetch(account.endpoint + path, {
@@ -325,6 +325,14 @@ function WorldEditor({
   const [touching, setTouching] = useState(false);
   const [command, setCommand] = useState<ViewerProps["command"]>(null);
   const lock = useRef(false);
+  const operationId = useRef(0);
+  const generation = useRef<AbortController | null>(null);
+  const generationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [canStop, setCanStop] = useState(false);
+  const pendingWorld = useRef<{
+    document: WorldDocument;
+    dirty: boolean;
+  } | null>(null);
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const mounted = useRef(true);
   const viewerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -332,6 +340,9 @@ function WorldEditor({
     mounted.current = true;
     return () => {
       mounted.current = false;
+      operationId.current++;
+      generation.current?.abort();
+      if (generationTimer.current) clearTimeout(generationTimer.current);
     };
   }, []);
   const scene = useMemo<WorldScene>(
@@ -392,19 +403,34 @@ function WorldEditor({
   }, [ready]);
   async function run(
     label: string,
-    operation: () => Promise<void>,
+    operation: (signal?: AbortSignal) => Promise<void>,
     again: () => void,
+    cancellable = false,
   ) {
     if (lock.current) return;
     lock.current = true;
+    const id = ++operationId.current;
+    const controller = cancellable ? new AbortController() : null;
+    generation.current = controller;
+    setCanStop(cancellable);
+    if (cancellable)
+      generationTimer.current = setTimeout(() => {
+        if (operationId.current !== id) return;
+        stopGeneration();
+        setStatus("");
+        setError(
+          "The request reached the 2-minute limit and was stopped. Please try again.",
+        );
+        setRetry(() => again);
+      }, 120000);
     setBusy(label);
     setError("");
     setStatus("");
     setRetry(null);
     try {
-      await operation();
+      await operation(controller?.signal);
     } catch (e) {
-      if (mounted.current) {
+      if (mounted.current && operationId.current === id) {
         const message = e instanceof Error ? e.message : "";
         setError(
           /fetch|network|abort|timeout/i.test(message)
@@ -414,9 +440,34 @@ function WorldEditor({
         setRetry(() => again);
       }
     } finally {
-      lock.current = false;
-      if (mounted.current) setBusy("");
+      if (operationId.current === id && !pendingWorld.current) {
+        if (generationTimer.current) clearTimeout(generationTimer.current);
+        generation.current = null;
+        lock.current = false;
+        if (mounted.current) {
+          setBusy("");
+          setCanStop(false);
+        }
+      }
     }
+  }
+  function stopGeneration() {
+    if (pendingWorld.current) {
+      setDocument(pendingWorld.current.document);
+      setDirty(pendingWorld.current.dirty);
+      pendingWorld.current = null;
+      setViewerKey((k) => k + 1);
+    }
+    operationId.current++;
+    generation.current?.abort();
+    generation.current = null;
+    if (generationTimer.current) clearTimeout(generationTimer.current);
+    lock.current = false;
+    setBusy("");
+    setCanStop(false);
+    setError("");
+    setRetry(null);
+    setStatus("Stopped. Your world is unchanged.");
   }
   function change(next: WorldDocument, resetPlan = false) {
     setDocument({ ...next, plan: resetPlan ? null : next.plan });
@@ -503,24 +554,40 @@ function WorldEditor({
     const attempt = () => {
       void run(
         "Bringing them together…",
-        async () => {
-          const data = await request("/worlds/animate", {
-            world: document,
-            prompt: prompt.trim(),
-            requestId,
-          });
-          if (!mounted.current) return;
+        async (signal) => {
+          const data = await request(
+            "/worlds/animate",
+            {
+              world: document,
+              prompt: prompt.trim(),
+              requestId,
+            },
+            signal,
+          );
+          if (!mounted.current || signal?.aborted) return;
+          pendingWorld.current = { document, dirty };
           change({ ...document, plan: data.plan });
-          setStatus("Your interaction is ready. Press Play to watch.");
+          setBusy("Preparing your world…");
+          setStatus("");
           scroll.current?.scrollTo({ y: 0, animated: false });
         },
         attempt,
+        true,
       );
     };
     attempt();
   }
   function message(m: ViewerMessage) {
     if (m.type === "loaded" && m.id === sceneId) {
+      if (pendingWorld.current) {
+        pendingWorld.current = null;
+        if (generationTimer.current) clearTimeout(generationTimer.current);
+        generation.current = null;
+        lock.current = false;
+        setBusy("");
+        setCanStop(false);
+        setStatus("Your interaction is ready. Press Play to watch.");
+      }
       if (viewerTimer.current) clearTimeout(viewerTimer.current);
       setReady(true);
       setViewerError("");
@@ -529,7 +596,15 @@ function WorldEditor({
     if ((m.type === "error" && m.id === sceneId) || m.type === "fatal") {
       setReady(false);
       setPlaying(false);
-      setViewerError(m.message ?? "The world could not load. Try again.");
+      if (pendingWorld.current) {
+        stopGeneration();
+        setStatus("");
+        setError(
+          "The new interaction could not load. Your previous world has been restored. Please try again.",
+        );
+        setRetry(() => animate);
+      } else
+        setViewerError(m.message ?? "The world could not load. Try again.");
     }
     if (m.type === "selected" && m.id) setSelected(m.id);
     if (m.id === sceneId && m.type === "playing") setPlaying(true);
@@ -688,7 +763,10 @@ function WorldEditor({
         {!!busy && (
           <View style={s.progress}>
             <ActivityIndicator />
-            <Text style={s.progressText}>{busy}</Text>
+            <Text style={[s.progressText, { flex: 1 }]}>{busy}</Text>
+            {canStop && (
+              <Button label="Stop" secondary onPress={stopGeneration} />
+            )}
           </View>
         )}
         {!!error && (
